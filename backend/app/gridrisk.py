@@ -13,7 +13,7 @@ import zlib
 
 import numpy as np
 
-from . import forecasting, gisreal, shenzhen, weather
+from . import forecasting, gisreal, shenzhen, waternet, weather
 from .risk import DEPTH_LEVEL_THRESHOLDS_MM, bounded_local_depth_factor, district_vulnerability
 
 
@@ -56,6 +56,43 @@ def _grid_cells(res):
     ]
 
 
+def _water_corridor_values(latitudes, longitudes):
+    """Bounded water-corridor factor per query point, cached per resolution.
+
+    The OSM water layer is static, so corridor factors are memoised by a
+    rounded-resolution key shared by both the grid endpoint and the image
+    renderer; a 7-day 0.009-degree request would otherwise repeat ~3.5M
+    point-to-line scans.
+    """
+    latitudes = np.asarray(latitudes, dtype=float)
+    longitudes = np.asarray(longitudes, dtype=float)
+    if latitudes.size == 0:
+        return np.zeros(0, dtype=float)
+    if latitudes.size != longitudes.size:
+        raise ValueError("corridor query arrays must have equal length")
+    span_lat = float(np.max(latitudes) - np.min(latitudes)) or 1.0
+    span_lon = float(np.max(longitudes) - np.min(longitudes)) or 1.0
+    key = (
+        round(float(latitudes.size), 6),
+        round(span_lat, 6),
+        round(span_lon, 6),
+    )
+    with _IMAGE_STATIC_LOCK:
+        cached = _IMAGE_STATIC_CACHE.get(("corridor", key))
+        if cached is not None:
+            return cached
+    values = np.asarray(
+        [waternet.corridor_factor(float(lat), float(lon))
+         for lat, lon in zip(latitudes, longitudes)],
+        dtype=float,
+    )
+    with _IMAGE_STATIC_LOCK:
+        _IMAGE_STATIC_CACHE[("corridor", key)] = values
+        while len(_IMAGE_STATIC_CACHE) > 16:
+            _IMAGE_STATIC_CACHE.pop(next(iter(_IMAGE_STATIC_CACHE)))
+    return values
+
+
 def _ensemble(forecast_days, n_members, snapshot=None):
     snapshot = snapshot or weather.forecast_snapshot(forecast_days)
     ensemble, _, _ = forecasting.ensemble_for_snapshot(snapshot, n_members=n_members)
@@ -89,11 +126,14 @@ def build_grid_risk(
     impervious_values = built_array[
         _nearest_indices(built_array, latitudes, longitudes), 2
     ] / 100.0
+    # Water-network corridor factor per cell (bounded 0..0.18), from the OSM
+    # river/drain layer.  Cached across calls by resolution.
+    corridor_values = _water_corridor_values(latitudes, longitudes)
     cells = []
     risk_bytes = bytearray()
     depth_bytes = bytearray()
-    for (lat, lon), elevation, impervious in zip(
-        coordinates, elevation_values, impervious_values
+    for (lat, lon), elevation, impervious, corridor in zip(
+        coordinates, elevation_values, impervious_values, corridor_values
     ):
         elevation = float(elevation)
         impervious = float(impervious)
@@ -104,7 +144,8 @@ def build_grid_risk(
         factor = bounded_local_depth_factor(elevation, impervious, district)
         base_vulnerability, _ = district_vulnerability(district)
         vulnerability = float(np.clip(base_vulnerability * factor, 0.0, 1.0))
-        local = members[:, :, district_ids.index(district_id)] * factor
+        # Bounded corridor weighting: up to +18% near a drainage conduit.
+        local = members[:, :, district_ids.index(district_id)] * factor * (1.0 + corridor)
         probability = np.mean(local >= 150.0, axis=0)
         any_time_probability = float(np.mean(np.max(local, axis=1) >= 150.0))
         p10, p50, p90 = np.quantile(local, (0.1, 0.5, 0.9), axis=0) / 1000.0
@@ -130,6 +171,7 @@ def build_grid_risk(
             "district_id": district_id,
             "vulnerability": round(vulnerability, 3),
             "downscale_factor": round(factor, 3),
+            "water_corridor_factor": round(corridor, 4),
             "peak": round(any_time_probability, 4),
             "peak_probability_definition": "P(max over displayed horizon depth >= 0.15 m)",
             "peak_hour": peak_index,
@@ -143,6 +185,7 @@ def build_grid_risk(
         "not_2d_hydraulics",
         "uncalibrated_parameters",
         "rectangular_grid_not_boundary_clipped",
+        "water_corridor_geometry_proxy",
     ]
     if snapshot.get("fallback"):
         flags.append("synthetic_rainfall_fallback")
@@ -179,6 +222,7 @@ def build_grid_risk(
             "district_dynamics": "estimated(conservative ensemble state-space)",
             "elevation_impervious": "observed-derived(project local DEM/WorldCover)",
             "local_downscale": "estimated(bounded ranking factor; not pipe/2-D flow)",
+            "water_corridor": "observed-derived(OSM river/drain geometry; bounded +0..0.18 proximity weight, no overbank hydraulics)",
         },
         "cells": cells,
 }
@@ -284,6 +328,7 @@ def _image_static_fields(resolution):
         built_array = np.asarray(built_points, dtype=float)
         elevation = dem_array[_nearest_indices(dem_array, lat_flat, lon_flat), 2]
         impervious = built_array[_nearest_indices(built_array, lat_flat, lon_flat), 2] / 100.0
+        corridor = _water_corridor_values(lat_flat, lon_flat)
         centroids = gisreal._district_centroids()
         district_ids = np.asarray(
             [gisreal._nearest_did(centroids, lat, lon) for lat, lon in zip(lat_flat, lon_flat)],
@@ -296,7 +341,7 @@ def _image_static_fields(resolution):
         # Keep stable district identifiers in the static cache.  Resolving the
         # indices against the actual ensemble below avoids silently assigning
         # one district's depths to another if a future model changes ordering.
-        result = (lats, lons, rows, columns, district_ids, factors)
+        result = (lats, lons, rows, columns, district_ids, factors, corridor)
         _IMAGE_STATIC_CACHE[key] = result
         while len(_IMAGE_STATIC_CACHE) > 8:
             _IMAGE_STATIC_CACHE.pop(next(iter(_IMAGE_STATIC_CACHE)))
@@ -317,7 +362,7 @@ def build_grid_image(
     scale = float(alpha_scale)
     if not np.isfinite(scale) or scale <= 0.0:
         raise ValueError("alpha_scale must be a finite positive number")
-    lats, lons, rows, columns, district_ids, factors = _image_static_fields(resolution)
+    lats, lons, rows, columns, district_ids, factors, corridor = _image_static_fields(resolution)
 
     _, ensemble = _ensemble(forecast_days, forecasting.ENSEMBLE_SIZE, snapshot)
     member_depth = np.asarray(ensemble["members_depth_mm"], dtype=float)
@@ -342,7 +387,7 @@ def build_grid_image(
             )
         selected_depth = member_depth[:, selected_hour, :]
         temporal_slice = f"hour-{selected_hour}"
-    local_depth = selected_depth[:, district_index] * factors[None, :]
+    local_depth = selected_depth[:, district_index] * factors[None, :] * (1.0 + corridor)[None, :]
     probability = np.mean(local_depth >= 150.0, axis=0)
     median_depth = np.quantile(local_depth, 0.5, axis=0)
     levels = np.digitize(median_depth, DEPTH_LEVEL_THRESHOLDS_MM, right=False)

@@ -35,6 +35,10 @@ docs/access_credentials.md
 data/raw/
 data/rainfall/raw/
 data/osm/shenzhen_roads_raw.json
+backend/data/swmm/cache/
+backend/data/swmm/sz_*/
+backend/data/swmm/.cache/
+backend/data/swmm/inputs/
 
 # --- 临时工作目录（不入 git）---
 .tmp/

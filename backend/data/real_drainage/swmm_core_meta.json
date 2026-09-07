@@ -1,0 +1,55 @@
+{
+ "engine": "SWMManywhere 0.2.2",
+ "boxes": [
+  {
+   "label": "futian",
+   "project": "sz_futian_test",
+   "model": "model_1",
+   "bbox": [
+    114.03,
+    22.52,
+    114.09,
+    22.56
+   ],
+   "note": "福田区（测试）",
+   "crs": "EPSG:32650",
+   "nodes": 11756,
+   "edges": 11419
+  },
+  {
+   "label": "luohu",
+   "project": "sz_luohu_core",
+   "model": "model_6",
+   "bbox": [
+    114.09,
+    22.52,
+    114.18,
+    22.57
+   ],
+   "note": "罗湖区+福田东部",
+   "crs": "EPSG:32650",
+   "nodes": 18815,
+   "edges": 17635
+  },
+  {
+   "label": "nanshan",
+   "project": "sz_nanshan",
+   "model": "model_4",
+   "bbox": [
+    113.88,
+    22.47,
+    114.0,
+    22.56
+   ],
+   "note": "南山区",
+   "crs": "EPSG:32649",
+   "nodes": 40350,
+   "edges": 39303
+  }
+ ],
+ "totals": {
+  "nodes": 70921,
+  "edges": 68357,
+  "subcatchments": 6000
+ }
+}

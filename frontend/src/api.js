@@ -316,6 +316,157 @@ export async function getStreetRisk(forecastDays = 3, forecastRunId = null) {
   return fetchJSON(`/api/risk/street?forecast_days=${forecastDays}${run}`)
 }
 
+// ============ 排水恢复观测（严重度 × 退水速度分离）============
+export async function getDrainageSummary() {
+  return fetchJSON('/api/drainage/summary')
+}
+
+// ============ 地下排水管网（SWMManywhere 合成 + 真实台账）============
+export async function getDrainageNetwork(maxFeatures = 2000, minDiameterM = 0) {
+  const q = new URLSearchParams({ max_features: String(maxFeatures), min_diameter_m: String(minDiameterM) })
+  return fetchJSON(`/api/drainagenet/network?${q.toString()}`)
+}
+
+export async function getDrainageNodes(outfallsOnly = false, maxFeatures = 3000) {
+  const q = new URLSearchParams({ outfalls_only: String(outfallsOnly), max_features: String(maxFeatures) })
+  return fetchJSON(`/api/drainagenet/nodes?${q.toString()}`)
+}
+
+export async function getDrainageSubcatchments(maxFeatures = 1200) {
+  const q = new URLSearchParams({ max_features: String(maxFeatures) })
+  return fetchJSON(`/api/drainagenet/subcatchments?${q.toString()}`)
+}
+
+export async function getDrainagePoints() {
+  return fetchJSON('/api/drainagenet/points')
+}
+
+export async function getDrainageNetStats() {
+  return fetchJSON('/api/drainagenet/stats')
+}
+
+export async function getDrainageRegisters() {
+  return fetchJSON('/api/drainagenet/registers')
+}
+
+// ============ 排水资产（排涝泵站点位，水务局统计表 + 天地图编码）============
+export async function getPumpStations() {
+  return fetchJSON('/api/pipeassets/pumps')
+}
+
+// ============ LarNO 福田物理基准（MIKE+ 80 场事件）============
+export async function getLarnoSummary() {
+  return fetchJSON('/api/larno/summary')
+}
+
+// ============ 地震灾害（历史目录 + 断裂带 + 烈度评估 + 风险）============
+export async function getEarthquakeCatalog(minMag = 0, maxDistanceKm = null, limit = 120) {
+  const q = new URLSearchParams({ min_mag: String(minMag), limit: String(limit) })
+  if (maxDistanceKm != null) q.set('max_distance_km', String(maxDistanceKm))
+  return fetchJSON(`/api/earthquake/catalog?${q.toString()}`)
+}
+
+export async function getEarthquakeFaults() {
+  return fetchJSON('/api/earthquake/faults')
+}
+
+export async function getEarthquakeScenario({ mag = 6.0, lat = 22.545, lon = 114.06, depthKm = 10, name = '' } = {}) {
+  const q = new URLSearchParams({ mag: String(mag), lat: String(lat), lon: String(lon), depth_km: String(depthKm) })
+  if (name) q.set('name', name)
+  return fetchJSON(`/api/earthquake/scenario?${q.toString()}`)
+}
+
+export async function getEarthquakeRisk() {
+  return fetchJSON('/api/earthquake/risk')
+}
+
+export async function getEarthquakeNearestFault(lat = 22.545, lon = 114.06) {
+  const q = new URLSearchParams({ lat: String(lat), lon: String(lon) })
+  return fetchJSON(`/api/earthquake/nearest-fault?${q.toString()}`)
+}
+
+// ============ 气象灾害：高温热浪 + 大雾 + 雷电 ============
+export async function getClimateHazards() {
+  return fetchJSON('/api/climate-hazards/monitor')
+}
+
+// ============ 水库调度：蓄洪余量 + 预泄方案 + 山洪联合预警 ============
+export async function getReservoirsInventory() {
+  return fetchJSON('/api/reservoirs/inventory')
+}
+
+export async function getReservoirsPreRelease(rain48hMm = null) {
+  const q = rain48hMm != null ? `?rain_48h_mm=${rain48hMm}` : ''
+  return fetchJSON(`/api/reservoirs/pre-release${q}`)
+}
+
+export async function getReservoirsRiverWarning(releaseM3S = 0, rain48hMm = null) {
+  const q = new URLSearchParams({ release_m3_s: String(releaseM3S) })
+  if (rain48hMm != null) q.set('rain_48h_mm', String(rain48hMm))
+  return fetchJSON(`/api/reservoirs/river-warning?${q.toString()}`)
+}
+
+export async function getReservoirsSummary() {
+  return fetchJSON('/api/reservoirs/summary')
+}
+
+// ============ Human Impact Engine（居民影响与行为层）============
+export async function getHumanImpactHazards() {
+  return fetchJSON('/api/human-impact/hazards')
+}
+
+export async function getHumanImpactPopulation() {
+  return fetchJSON('/api/human-impact/population')
+}
+
+export async function getHumanImpactOverview(hazard = 'pluvial_flood') {
+  return fetchJSON(`/api/human-impact/overview?hazard=${hazard}`)
+}
+
+export async function getHumanImpactDetail(hazard, { hourOffset = 0, mag, lat, lon, depthKm, windMs, tApparentC, surgePeakM, rain48hMm } = {}) {
+  const q = new URLSearchParams({ hour_offset: String(hourOffset) })
+  if (mag != null) q.set('mag', String(mag))
+  if (lat != null) q.set('lat', String(lat))
+  if (lon != null) q.set('lon', String(lon))
+  if (depthKm != null) q.set('depth_km', String(depthKm))
+  if (windMs != null) q.set('wind_ms', String(windMs))
+  if (tApparentC != null) q.set('t_apparent_c', String(tApparentC))
+  if (surgePeakM != null) q.set('surge_peak_m', String(surgePeakM))
+  if (rain48hMm != null) q.set('rain_48h_mm', String(rain48hMm))
+  return fetchJSON(`/api/human-impact/${hazard}?${q.toString()}`)
+}
+
+export async function getHumanImpactTimeline(hazard, params = {}) {
+  const q = new URLSearchParams()
+  if (params.mag != null) q.set('mag', String(params.mag))
+  if (params.lat != null) q.set('lat', String(params.lat))
+  if (params.lon != null) q.set('lon', String(params.lon))
+  if (params.windMs != null) q.set('wind_ms', String(params.windMs))
+  if (params.tApparentC != null) q.set('t_apparent_c', String(params.tApparentC))
+  if (params.surgePeakM != null) q.set('surge_peak_m', String(params.surgePeakM))
+  if (params.rain48hMm != null) q.set('rain_48h_mm', String(params.rain48hMm))
+  return fetchJSON(`/api/human-impact/timeline/${hazard}?${q.toString()}`)
+}
+
+export async function getHumanImpactDistrict(districtId, hazard = 'pluvial_flood', hourOffset = 0) {
+  const q = new URLSearchParams({ hazard, hour_offset: String(hourOffset) })
+  return fetchJSON(`/api/human-impact/district/${districtId}?${q.toString()}`)
+}
+
+// ============ 水网图层（OSM 河流/排水渠几何）============
+export async function getWaternetLayer(kinds = 'river,stream,drain,canal', minLengthKm = 0.3, maxFeatures = 2000) {
+  const q = new URLSearchParams({
+    kinds,
+    min_length_km: String(minLengthKm),
+    max_features: String(maxFeatures),
+  })
+  return fetchJSON(`/api/waternet/layer?${q.toString()}`)
+}
+
+export async function getWaternetDistricts() {
+  return fetchJSON('/api/waternet/districts')
+}
+
 export async function getGridRisk(forecastDays = 3, res = 0.018, forecastRunId = null) {
   const run = forecastRunId ? `&forecast_run_id=${encodeURIComponent(forecastRunId)}` : ''
   const payload = await fetchJSON(`/api/risk/grid?forecast_days=${forecastDays}&res=${res}${run}`)

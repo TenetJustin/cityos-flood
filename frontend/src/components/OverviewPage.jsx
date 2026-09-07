@@ -7,6 +7,10 @@ import RiskMap from './RiskMap.jsx'
 import AnimatedNumber from './AnimatedNumber.jsx'
 import AlertStream from './AlertStream.jsx'
 import FloodRiskPanel from './FloodRiskPanel.jsx'
+import DrainageRecoveryPanel from './DrainageRecoveryPanel.jsx'
+import LarnoPanel from './LarnoPanel.jsx'
+import ClimateHazardsPanel from './ClimateHazardsPanel.jsx'
+import HumanImpactPanel from './HumanImpactPanel.jsx'
 import DailyBriefing from './DailyBriefing.jsx'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -160,6 +164,18 @@ export default function OverviewPage({ predictData = null }) {
       {/* ===== 内涝概率桶 ===== */}
       <FloodRiskPanel />
 
+      {/* ===== 排水恢复观测（严重度 × 退水速度分离）===== */}
+      <DrainageRecoveryPanel />
+
+      {/* ===== 福田物理基准（LarNO · MIKE+ 80 场事件）===== */}
+      <LarnoPanel />
+
+      {/* ===== 高温 · 大雾 · 雷电实时监测 ===== */}
+      <ClimateHazardsPanel />
+
+      {/* ===== 居民影响（Human Impact）===== */}
+      <HumanImpactPanel />
+
       {/* ===== 主区：3D + 三联曲线 ===== */}
       <div className="ov-main">
         <div className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -289,6 +305,10 @@ const SOURCE_TABLE = [
   { group: '内涝预测', items: [
     ['积水深度（逐时/分区）', '守恒状态空间模型（真实 GIS 参数，质量守恒可审计）', 'model'],
     ['易涝点底数（206 处）', '官方 2019 易涝路段名单（天地图地理编码）', 'observed'],
+    ['排水恢复（严重度×退水速度）', '148 积涝站小时水位观测（深圳市水务局开放平台）', 'observed'],
+    ['福田物理基准（LarNO）', 'MIKE+ 含真实管网模拟 80 场事件（HuggingFace, MIT, J.Hydrology 2026）', 'simulated'],
+    ['水网廊道因子', 'OSM 河流/排水渠几何（全市 1,588km 河渠）', 'observed'],
+    ['排涝泵站（78 座）', '市水务局统计表 + 天地图地理编码', 'observed'],
   ]},
   { group: '滑坡预警', items: [
     ['预警概率（日）', '监督模型：905 条官方预警训练，时间外 AUC=0.821 · 召回率 36%（保守口径）', 'model'],

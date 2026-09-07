@@ -1,0 +1,6 @@
+base_dir: .
+project: sz_luohu_core
+bbox: [114.09, 22.52, 114.18, 22.57]
+run_model: false
+address_overrides:
+  building: inputs/sz_luohu_core_buildings.geoparquet

@@ -1,0 +1,6 @@
+base_dir: .
+project: sz_futian_test
+bbox: [114.03, 22.52, 114.09, 22.56]
+run_model: false
+address_overrides:
+  building: inputs/futian_buildings.geoparquet

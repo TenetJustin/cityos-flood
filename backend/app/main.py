@@ -14,15 +14,23 @@ from starlette.datastructures import UploadFile
 from . import (
     accessibility,
     assimilation,
+    climate_hazards,
     coastal,
     demo,
     dispatch,
+    drainage,
+    drainagenet,
+    earthquake,
     events,
     forecasting,
     geohazard,
+    human_impact,
+    larno,
     multihazard,
     ocean,
+    pipeassets,
     realdatav,
+    reservoir_ops,
     river,
     shenzhen,
     simulate,
@@ -30,6 +38,7 @@ from . import (
     typhoon,
     userdata,
     wam,
+    waternet,
     weather,
 )
 from .risk import district_vulnerability
@@ -946,6 +955,310 @@ def api_assimilate_realtime(
             detail=result.get("error") or result.get("hint") or "实时同化参数无效。",
         )
     return result
+
+
+# ============ 排水恢复观测（严重度 × 退水速度分离）============
+
+@app.get("/api/drainage/summary")
+def api_drainage_summary():
+    """积涝站观测层：峰值积水与退水速度分离，福田「涝得急、退得快」可同时成立。"""
+    return drainage.get_drainage_summary()
+
+
+# ============ 地下排水管网（SWMManywhere 合成 + 真实台账）============
+
+@app.get("/api/drainagenet/network")
+def api_drainagenet_network(
+    max_features: int = Query(2000, ge=100, le=12000),
+    min_diameter_m: float = Query(0.0, ge=0.0, le=3.0),
+):
+    """SWMManywhere 合成排水管网管道层（GeoJSON，沿道路布管）。"""
+    return drainagenet.map_network(max_features=max_features, min_diameter_m=min_diameter_m)
+
+
+@app.get("/api/drainagenet/nodes")
+def api_drainagenet_nodes(
+    max_features: int = Query(3000, ge=100, le=12000),
+    outfalls_only: bool = Query(False),
+):
+    """合成管网节点层（检查井/排放口）。"""
+    return drainagenet.map_nodes(max_features=max_features, outfalls_only=outfalls_only)
+
+
+@app.get("/api/drainagenet/subcatchments")
+def api_drainagenet_subcatchments(max_features: int = Query(1200, ge=50, le=2000)):
+    """合成管网子汇水区层（按面积取前 N）。"""
+    return drainagenet.map_subcatchments(max_features=max_features)
+
+
+@app.get("/api/drainagenet/points")
+def api_drainagenet_points():
+    """真实排水点位：OSM 检查井（真实坐标）+ 开放平台区级台账（区中心近似）。"""
+    return drainagenet.map_points()
+
+
+@app.get("/api/drainagenet/stats")
+def api_drainagenet_stats():
+    """合成模型 + 真实台账统计摘要。"""
+    return drainagenet.stats()
+
+
+@app.get("/api/drainagenet/registers")
+def api_drainagenet_registers():
+    """属性台账（泵站/内涝点/运营单位/井盖位置描述）。"""
+    return drainagenet.registers()
+
+
+# ============ 排水资产：排涝泵站图层 + 宝安井盖密度 ============
+
+@app.get("/api/pipeassets/pumps")
+def api_pipeassets_pumps(district_id: Optional[str] = Query(None)):
+    """78 座排涝泵站点位（水务局统计表 + 天地图地理编码近似坐标）。"""
+    return pipeassets.pump_stations_layer(district_id)
+
+
+@app.get("/api/pipeassets/baoan-density")
+def api_pipeassets_baoan():
+    """宝安雨水井盖/箅子街道级密度（开放数据抽样，无坐标仅网格编码）。"""
+    return pipeassets.baoan_asset_density()
+
+
+# ============ LarNO 福田物理基准（MIKE+ 80 场事件）============
+
+@app.get("/api/larno/summary")
+def api_larno_summary():
+    """LarNO 福田基准：事件级严重度×退水速率聚合（MIKE+ 含真实管网模拟，MIT）。"""
+    return larno.dataset_summary()
+
+
+@app.get("/api/larno/event/{event}")
+def api_larno_event(event: str):
+    """单场事件的严重度/降雨/退水指标。"""
+    result = larno.event_detail(event)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+# ============ 地震灾害（历史目录 + 断裂带 + 烈度快速评估）============
+
+@app.get("/api/earthquake/catalog")
+def api_earthquake_catalog(
+    min_mag: float = Query(0.0, ge=0.0, le=9.0),
+    max_distance_km: Optional[float] = Query(None, ge=0.0),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """华南沿海历史地震目录（USGS 真实数据，M≥4）。"""
+    return earthquake.catalog(min_mag=min_mag, max_distance_km=max_distance_km, limit=limit)
+
+
+@app.get("/api/earthquake/faults")
+def api_earthquake_faults():
+    """深圳及周边断裂带（公开文献示意，非实测）。"""
+    return earthquake.faults()
+
+
+@app.get("/api/earthquake/scenario")
+def api_earthquake_scenario(
+    mag: float = Query(6.0, ge=3.0, le=8.5),
+    lat: float = Query(22.545),
+    lon: float = Query(114.060),
+    depth_km: float = Query(10.0, ge=0.0, le=300.0),
+    name: str = Query("", max_length=60),
+):
+    """情景地震烈度快速评估（GA 式衰减，近似）。"""
+    return earthquake.scenario(mag=mag, lat=lat, lon=lon, depth_km=depth_km, name=name)
+
+
+@app.get("/api/earthquake/risk")
+def api_earthquake_risk():
+    """区级地震风险分级（断裂邻近度+历史震级+暴露度）。"""
+    return earthquake.risk_summary()
+
+
+@app.get("/api/earthquake/nearest-fault")
+def api_earthquake_nearest_fault(lat: float = Query(22.545), lon: float = Query(114.060)):
+    """任一点最近断裂带距离。"""
+    return earthquake.nearest_fault(lat=lat, lon=lon)
+
+
+# ============ 气象灾害：高温热浪 + 大雾 + 雷电 ============
+
+@app.get("/api/climate-hazards/monitor")
+def api_climate_hazards_monitor():
+    """高温/大雾/雷电 10 区实时监测与阈值预警（Open-Meteo 预报）。"""
+    return climate_hazards.monitor()
+
+
+# ============ 水库调度：蓄洪余量 + 预泄方案 + 山洪联合预警 ============
+
+@app.get("/api/reservoirs/inventory")
+def api_reservoirs_inventory():
+    """水库清单与蓄洪余量（库容参数公开资料 + 水位/雨量真实台账）。"""
+    return reservoir_ops.inventory()
+
+
+@app.get("/api/reservoirs/pre-release")
+def api_reservoirs_pre_release(rain_48h_mm: Optional[float] = Query(None, ge=0.0)):
+    """预泄调度方案：48h 预报降雨 → 入库水量 vs 蓄洪余量 → 建议预泄。"""
+    if rain_48h_mm is None:
+        return reservoir_ops.pre_release()
+    # 均匀分布雨量到 48h（峰型简化）
+    flat = [rain_48h_mm / 48.0] * 48
+    return reservoir_ops.pre_release(flat)
+
+
+@app.get("/api/reservoirs/river-warning")
+def api_reservoirs_river_warning(
+    release_m3_s: float = Query(0.0, ge=0.0),
+    rain_48h_mm: Optional[float] = Query(None, ge=0.0),
+):
+    """下游河道（conservative 模型）+ 山洪沟道联合预警。"""
+    if rain_48h_mm is not None:
+        flat = [rain_48h_mm / 48.0] * 48
+        return reservoir_ops.river_warning(flat, release_m3_s=release_m3_s)
+    return reservoir_ops.river_warning(release_m3_s=release_m3_s)
+
+
+@app.get("/api/reservoirs/summary")
+def api_reservoirs_summary():
+    """水库-河道-山洪-气象综合卡。"""
+    return reservoir_ops.summary()
+
+
+# ============ Human Impact Engine（居民影响与行为层）============
+
+def _hazard_params(mag, lat, lon, depth_km, wind_ms, t_apparent_c,
+                   surge_peak_m, rain_48h_mm):
+    params = {}
+    if mag is not None: params["mag"] = mag
+    if lat is not None: params["lat"] = lat
+    if lon is not None: params["lon"] = lon
+    if depth_km is not None: params["depth_km"] = depth_km
+    if wind_ms is not None: params["wind_ms"] = wind_ms
+    if t_apparent_c is not None: params["t_apparent_c"] = t_apparent_c
+    if surge_peak_m is not None: params["surge_peak_m"] = surge_peak_m
+    if rain_48h_mm is not None: params["rain_48h_mm"] = rain_48h_mm
+    return params
+
+
+@app.get("/api/human-impact/hazards")
+def api_human_impact_hazards():
+    """支持的灾害与标签。"""
+    from .hazard_adapters import HAZARD_LABELS
+    return {"hazards": human_impact.hazard_list(),
+            "labels": {h: HAZARD_LABELS.get(h, h)
+                       for h in human_impact.hazard_list()}}
+
+
+@app.get("/api/human-impact/population")
+def api_human_impact_population():
+    """居民空间底座：GHS 昼夜人口网格 + cohort + 脆弱性。"""
+    return human_impact.population_summary()
+
+
+@app.get("/api/human-impact/overview")
+def api_human_impact_overview(hazard: str = Query("pluvial_flood")):
+    """当前时刻居民影响概览：四核心指标 + 行为 + 级联。"""
+    return human_impact.human_impact(hazard, hour_offset=0)
+
+
+@app.get("/api/human-impact/{hazard}")
+def api_human_impact_detail(
+    hazard: str,
+    hour_offset: int = Query(0, ge=0, le=72),
+    mag: Optional[float] = Query(None, ge=3.0, le=8.5),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None),
+    depth_km: Optional[float] = Query(None),
+    wind_ms: Optional[float] = Query(None, ge=0.0),
+    t_apparent_c: Optional[float] = Query(None),
+    surge_peak_m: Optional[float] = Query(None, ge=0.0),
+    rain_48h_mm: Optional[float] = Query(None, ge=0.0),
+):
+    """指定灾害/时刻的逐格居民影响（含 6 维评分分解）。"""
+    params = _hazard_params(mag, lat, lon, depth_km, wind_ms, t_apparent_c,
+                            surge_peak_m, rain_48h_mm)
+    return human_impact.human_impact(hazard, hour_offset=hour_offset, params=params)
+
+
+@app.get("/api/human-impact/timeline/{hazard}")
+def api_human_impact_timeline(
+    hazard: str,
+    mag: Optional[float] = Query(None, ge=3.0, le=8.5),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None),
+    depth_km: Optional[float] = Query(None),
+    wind_ms: Optional[float] = Query(None, ge=0.0),
+    t_apparent_c: Optional[float] = Query(None),
+    surge_peak_m: Optional[float] = Query(None, ge=0.0),
+    rain_48h_mm: Optional[float] = Query(None, ge=0.0),
+):
+    """T0→T+24h 居民影响时间推演（onset→peak→recovery）。"""
+    params = _hazard_params(mag, lat, lon, depth_km, wind_ms, t_apparent_c,
+                            surge_peak_m, rain_48h_mm)
+    return human_impact.timeline(hazard, params=params)
+
+
+@app.get("/api/human-impact/district/{district_id}")
+def api_human_impact_district(
+    district_id: str,
+    hazard: str = Query("pluvial_flood"),
+    hour_offset: int = Query(0, ge=0, le=72),
+):
+    """区级居民影响详情：指标 + 行为 + 主要影响原因。"""
+    data = human_impact.human_impact(hazard, hour_offset=hour_offset)
+    agg = data["aggregate"]
+    d = next((x for x in agg["districts"] if x["district_id"] == district_id), None)
+    if d is None:
+        raise HTTPException(status_code=404, detail=f"no district {district_id!r}")
+    cells = [r for r in data["records"] if r["district_id"] == district_id]
+    cells.sort(key=lambda r: -r["human_impact_score"])
+    top_cells = cells[:12]
+    reasons = {}
+    for r in cells:
+        for reason in r.get("reasons", []):
+            reasons[reason] = reasons.get(reason, 0) + 1
+    top_reasons = sorted(reasons.items(), key=lambda kv: -kv[1])[:5]
+    return {
+        "district": d,
+        "city": agg["city"],
+        "behavior": data["behavior"],
+        "top_reasons": [{"reason": k, "cells": v} for k, v in top_reasons],
+        "top_cells": top_cells,
+        "hazard": hazard,
+        "provenance": data["aggregate"].get("provenance", "see human_config.PROVENANCE"),
+    }
+
+
+# ============ 水网图层与区级水网特征（OSM 河流/排水渠）============
+
+@app.get("/api/waternet/layer")
+def api_waternet_layer(
+    kinds: Optional[str] = Query(None, description="逗号分隔的类型过滤，如 river,drain"),
+    min_length_km: float = Query(0.0, ge=0.0, le=100.0),
+    max_features: int = Query(2500, ge=50, le=5000),
+):
+    """水网简化 GeoJSON 图层（河流/排水渠/水体线），供地图渲染叠加。"""
+    kind_list = [k.strip() for k in kinds.split(",") if k.strip()] if kinds else None
+    return waternet.map_layer(
+        kinds=kind_list,
+        min_length_km=min_length_km,
+        max_features=max_features,
+    )
+
+
+@app.get("/api/waternet/districts")
+def api_waternet_districts():
+    """区级水网统计：河流/排水渠长度、密度与质心近水距离。"""
+    return {
+        "districts": waternet.district_water_stats(),
+        "corridor_definition": {
+            "max_proximity_km": waternet.MAX_PROXIMITY_KM,
+            "max_gain": waternet.PROXIMITY_GAIN,
+            "note": "几何邻近代理；非漫滩水力学",
+        },
+    }
 
 
 # ============ 街道代表点风险排序（真实 GIS 特征的有界下尺度）============

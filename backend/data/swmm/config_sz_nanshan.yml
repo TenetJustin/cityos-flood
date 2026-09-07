@@ -1,0 +1,6 @@
+base_dir: .
+project: sz_nanshan
+bbox: [113.88, 22.47, 114.00, 22.56]
+run_model: false
+address_overrides:
+  building: inputs/sz_nanshan_buildings.geoparquet

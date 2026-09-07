@@ -1,0 +1,67 @@
+{
+  "name": "futian-swe-p0",
+  "bbox": {
+    "south": 22.505,
+    "north": 22.585,
+    "west": 113.995,
+    "east": 114.115
+  },
+  "res_m": 60.0,
+  "n_vertices": 31104,
+  "n_triangles": 61490,
+  "origin_deg": [
+    22.505,
+    113.995
+  ],
+  "area_km2": 108.86,
+  "bed_range_m": [
+    0.0,
+    371.89
+  ],
+  "rough_range": [
+    0.0188,
+    0.063
+  ],
+  "districts": [
+    "futian",
+    "luohu",
+    "nanshan",
+    "baoan",
+    "longgang",
+    "yantian",
+    "longhua",
+    "pingshan",
+    "guangming",
+    "dapeng"
+  ],
+  "bin_layout": [
+    "N:u32",
+    "M:u32",
+    "verts_x:f32[N]",
+    "verts_y:f32[N]",
+    "elems:u32[3M]",
+    "neighbors:i32[3M](-1=boundary)",
+    "area:f32[M]",
+    "bed:f32[M]",
+    "rough:f32[M]",
+    "lat_c:f32[M]",
+    "lon_c:f32[M]"
+  ],
+  "dist_idx": "uint8[M] (separate dist_idx.bin)",
+  "provenance": {
+    "bed": "observed-derived(NASADEM 30m)",
+    "rough": "derived(built-up% observed) via assumed n(b) curve",
+    "district": "assumed(nearest representative centre, gridrisk convention)",
+    "mesh": "offline Delaunay planar local coordinates"
+  },
+  "generated": "2026-09-02T17:13:28",
+  "drain_rate": {
+    "file": "drain_rate.bin",
+    "layout": "f32[M] s^-1",
+    "formula": "k = K_REF*(0.15+0.85*b/100), K_REF=4.94e-5 s^-1",
+    "provenance": {
+      "K_REF": "derived(LarNO 77 events median recession 1.47%/5min, observed from MIKE+ output)",
+      "spatial_proxy": "derived(built-up% observed, recovered from rough field n(b) inverse)"
+    }
+  }
+}

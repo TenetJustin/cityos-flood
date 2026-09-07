@@ -16,7 +16,7 @@ from typing import Any, Mapping, Optional
 
 import numpy as np
 
-from . import observations, ocean, shenzhen, state_model
+from . import drainage, observations, ocean, shenzhen, state_model, waternet
 from .risk import (
     ACTIONABLE_DEPTH_MM,
     DEPTH_LEVEL_THRESHOLDS_MM,
@@ -474,6 +474,12 @@ def build_predict(snapshot, n_members=ENSEMBLE_SIZE):
     )
 
     districts_out = []
+    # District water-network statistics (one static computation per process),
+    # resolved before the loop so every district record can embed it.
+    try:
+        water_network_summary = waternet.district_water_stats()
+    except Exception:
+        water_network_summary = {}
     for idx, district in enumerate(shenzhen.DISTRICTS):
         did = district["id"]
         series = _series_for_district(
@@ -497,6 +503,8 @@ def build_predict(snapshot, n_members=ENSEMBLE_SIZE):
             "tag": district["tag"],
             "rainfall": [_round(x, 2) for x in rainfall[did]],
             "cum24": [_round(x, 2) for x in snapshot["cum"][did]],
+            "drainage_observation": drainage.district_features(did),
+            "water_network": water_network_summary.get(did, {}),
             "series": series,
             "first_forecast": series[0],
             # Deprecated compatibility alias: this is the first future valid
@@ -628,6 +636,8 @@ def build_predict(snapshot, n_members=ENSEMBLE_SIZE):
             "antecedent_surface_state": spinup.get("source") if spinup["applied"] else "unavailable(zero-depth fallback)",
             "water_level_initial_state": "observed(fresh only)" if live_observations else "unavailable(stale cache excluded)",
             "dem_landcover_roads": "observed-derived(project local GIS assets)",
+            "water_network": "observed-derived(OSM river/drain geometry; corridor proxy, not overbank hydraulics)",
+            "drainage_recovery_observation": "observed-derived(waterlogging station hourly levels; severity and recession reported separately)",
             "routing_and_hydraulic_parameters": "estimated/assumed; exposed for calibration",
             "risk_probability": "estimated(parameter ensemble exceedance; uncalibrated)",
         },

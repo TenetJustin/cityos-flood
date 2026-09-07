@@ -7,6 +7,10 @@ import KnowledgeBasePanel from './components/KnowledgeBasePanel.jsx'
 import TyphoonPage from './components/TyphoonPage.jsx'
 import SurgePage from './components/SurgePage.jsx'
 import LandslidePage from './components/LandslidePage.jsx'
+import EarthquakePage from './components/EarthquakePage.jsx'
+import ReservoirPanel from './components/ReservoirPanel.jsx'
+import HumanImpactPage from './components/HumanImpactPage.jsx'
+import SwePage from './components/SwePage.jsx'
 import { getPredict } from './api'
 
 /* ============ 主题上下文 ============ */
@@ -36,6 +40,8 @@ const NAV = [
     items: [
       { id: 'world', icon: '◈', label: '推演与反事实', desc: '空间耦合 · 可达性 · 同化' },
       { id: 'wam', icon: '⬢', label: '自主优化 WAM', desc: 'CEM 安全决策闭环' },
+      { id: 'human-impact', icon: '🧍', label: '居民影响', desc: '灾害→人群→行为→级联→恢复' },
+      { id: 'swe', icon: '🌊', label: 'SWE 物理引擎', desc: 'WebGPU 浅水方程 · 福田三角网格' },
     ],
   },
   {
@@ -50,6 +56,13 @@ const NAV = [
       { id: 'typhoon', icon: '🌀', label: '台风', desc: '路径库 · 链式预测 · 3D 叠加' },
       { id: 'surge', icon: '🌊', label: '风暴潮', desc: '潮位站 · 波浪事件 · 海洋点位' },
       { id: 'landslide', icon: '⛰', label: '滑坡', desc: '隐患点 · 分区风险' },
+      { id: 'earthquake', icon: '🌍', label: '地震', desc: '断裂带 · 烈度评估 · 风险分级' },
+    ],
+  },
+  {
+    section: '水务调度',
+    items: [
+      { id: 'reservoir', icon: '🏞️', label: '水库与山洪', desc: '蓄洪余量 · 预泄 · 沟道预警' },
     ],
   },
 ]
@@ -62,6 +75,10 @@ const PAGE_TITLES = {
   typhoon: { title: '台风灾害', sub: '历史路径库 · 多灾种链式预测 · 3D 路径叠加' },
   surge: { title: '风暴潮灾害', sub: '潮位站统计 · 四大事件波浪 · 历史档案' },
   landslide: { title: '滑坡灾害', sub: '在册隐患点 · 分区风险 · 官方预警模型' },
+  'human-impact': { title: '居民影响与行为', sub: '灾害→人口暴露→居民行为→交通/医疗/避难级联→恢复' },
+  earthquake: { title: '地震灾害', sub: '断裂带 · 历史目录 · 烈度快速评估 · 区级风险' },
+  reservoir: { title: '水库调度与山洪预警', sub: '蓄洪余量 · 预泄方案 · 下游河道与山洪沟道联合预警' },
+  swe: { title: 'SWE 底层物理引擎 (WebGPU)', sub: '福田 60m 非结构三角网格 · 二维浅水方程实时推演 · 降雨→积水→(P1)道路/设施' },
 }
 
 export default function App() {
@@ -163,6 +180,10 @@ export default function App() {
               {page === 'typhoon' && <div className="legacy-wrap"><TyphoonPage /></div>}
               {page === 'surge' && <div className="legacy-wrap"><SurgePage /></div>}
               {page === 'landslide' && <div className="legacy-wrap"><LandslidePage /></div>}
+              {page === 'earthquake' && <div className="legacy-wrap"><EarthquakePage /></div>}
+              {page === 'reservoir' && <div className="legacy-wrap"><ReservoirPanel /></div>}
+              {page === 'human-impact' && <div className="legacy-wrap"><HumanImpactPage /></div>}
+              {page === 'swe' && <div className="legacy-wrap"><SwePage /></div>}
             </ErrorBoundary>
           </div>
         </main>
