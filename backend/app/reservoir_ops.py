@@ -30,15 +30,11 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from . import climate_hazards, river, shenzhen
+from .data_paths import EXTERNAL_DATA
 
 DATA_BASE = Path(__file__).resolve().parent.parent / "data"
 RESERVOIR_FILE = DATA_BASE / "reservoirs" / "shenzhen_reservoirs.json"
-_SZ_FLOOD_DATA = Path(
-    os.environ.get(
-        "SZ_FLOOD_DATA_BASE",
-        str(Path(__file__).resolve().parents[3] / "shenzhen-flood" / "data"),
-    )
-)
+_SZ_FLOOD_DATA = EXTERNAL_DATA
 LEVELS_FILE = _SZ_FLOOD_DATA / "reservoirs" / "raw" / "sz_reservoir_levels.csv"
 RAIN_FILE = _SZ_FLOOD_DATA / "reservoirs" / "raw" / "sz_reservoir_rainfall.csv"
 

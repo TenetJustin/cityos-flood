@@ -29,16 +29,12 @@ import threading
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from .data_paths import EXTERNAL_DATA
 
 DATA_BASE = Path(__file__).resolve().parent.parent / "data"
 # 数据位置：优先环境变量 SZ_FLOOD_DATA_BASE，否则默认相对本仓库的
 # shenzhen-flood/data/pipes/...（与代码内 /Users/imac 硬编码兼容）。
-_SZ_FLOOD_DATA = Path(
-    os.environ.get(
-        "SZ_FLOOD_DATA_BASE",
-        str(Path(__file__).resolve().parents[3] / "shenzhen-flood" / "data"),
-    )
-)
+_SZ_FLOOD_DATA = EXTERNAL_DATA
 PUMP_GEO_FILE = Path(
     os.environ.get("PUMP_GEO_FILE", str(_SZ_FLOOD_DATA / "pipes/processed/pump_stations_geo.json"))
 )

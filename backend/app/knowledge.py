@@ -18,14 +18,15 @@ import os
 import urllib.error
 import urllib.request
 from datetime import datetime
+from .data_paths import external_file
 
 # ---------------------------------------------------------------------------
 # 数据路径
 # ---------------------------------------------------------------------------
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_UNIFIED = os.path.normpath(os.path.join(_HERE, "..", "..", "..", "shenzhen-flood", "data", "unified"))
-_ML_FEATURES = os.path.normpath(os.path.join(_HERE, "..", "..", "..", "shenzhen-flood", "data", "ml_features"))
-_ML_MODELS = os.path.normpath(os.path.join(_HERE, "..", "..", "..", "shenzhen-flood", "data", "ml_models"))
+_UNIFIED = str(external_file("unified"))
+_ML_FEATURES = str(external_file("ml_features"))
+_ML_MODELS = str(external_file("ml_models"))
 
 
 def _unified(name: str) -> str:
@@ -822,13 +823,30 @@ def case_detail(case_id: str):
 
 
 def city_base():
-    """城市底座统计。"""
-    return {"version": KB_VERSION, "generated_at": GENERATED_AT, **CITY_BASE}
+    """Historical city-base snapshot; not a live recalculation."""
+    return {"version": KB_VERSION, "generated_at": GENERATED_AT,
+            "evidence_status": "archived_snapshot_not_revalidated_on_request",
+            "note": "下列数字为历史研究档案，当前请求未重新核验原始数据。",
+            **CITY_BASE}
 
 
 def model_archive():
-    """三个监督模型的档案与诚实局限。"""
-    return {"version": KB_VERSION, "models": MODEL_ARCHIVE}
+    """Historical reported metrics, with current artifact availability."""
+    names = {"landslide-warning": "landslide_warning",
+             "flood-spatial": "flood_spatial",
+             "wave-typhoon": "wave_typhoon"}
+    models = []
+    for item in MODEL_ARCHIVE:
+        model_name = names[item["id"]]
+        models.append({**item,
+                       "metric_status": "archived_reported_not_currently_recomputed",
+                       "artifact_available": os.path.isfile(
+                           os.path.join(_ML_MODELS, model_name + ".pkl")),
+                       "metrics_file_available": os.path.isfile(
+                           os.path.join(_ML_MODELS, model_name + "_metrics.json"))})
+    return {"version": KB_VERSION,
+            "note": "数值是历史档案报告；当前模型和指标文件可用性逐项标注。",
+            "models": models}
 
 
 # ---------------------------------------------------------------------------

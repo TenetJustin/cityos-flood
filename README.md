@@ -1,59 +1,45 @@
-# CITY OS v5.1 · 深圳全自然灾害指挥中心
+# 东南地区台风与城市内涝韧性 · 研究原型
 
-世界模型 + 知识库 + 决策闭环的**城市安全指挥中心**（研究演示原型）。
-数据全部真实（IBTrACS/ERA5/CMEMS/HKO/规自局/深圳开放平台），非演示数字。
+本项目从深圳城市内涝模型扩展为五城市研究框架：上海、宁波、福州、深圳、海口。研究目标是识别台风、暴雨、潮位和河流相互作用形成的复合风险，评估居民与设施影响，并把结果转译为可核查的应急信息。当前可运行代码主要是**深圳研究原型**；其他四城已纳入区域目录，尚未接入城市模型和验证数据。
 
-## 核心能力
+项目混合使用真实观测、公开空间数据、参数化模型、规则假设和情景推演。不同端点的数据依据不同，不能将所有输出理解为实况、经过独立验证的预测，或官方预警。当前系统不具备真实城市预警、泵闸调度、道路管制或救援指挥资质。
 
-### 四灾种实时监测
-- **内涝**：守恒状态空间模型（真实 GIS 参数，质量守恒可审计）+ 集合模拟 P10/P50/P90 概率桶
-- **滑坡**：监督模型 **AUC 0.821**（905 条官方预警训练，时间外验证）
-- **台风**：IBTrACS 路径库（42 事件）+ 气象局实时预报
-- **风暴潮**：12 分潮谐波推算（RMSE 0.126m）+ 台风增水参数化
+## 当前可运行部分
 
-### AI 城安助手（三段式 RAG）
-Qwen3-Embedding-8B 语义召回 → bge-reranker-v2-m3 精排 → deepseek-v4-flash-vision-exp 生成。多轮对话、实时数据注入、今日态势简报、历史事件检索。
+- 深圳项目内的 GIS、历史易涝点、站点和水位缓存资料；部分服务提供研究型内涝、潮位、台风与影响情景推演。
+- 后端 `GET /api/data/research-status` 列出外部研究数据是否已接入。缺失数据所依赖的接口返回 HTTP 503 和缺失文件名称。
+- `GET /api/region/cities` 给出五城市研究范围及各城市当前实施状态。城市入选不代表该城已有预测服务。
+- `GET /api/region/responses/{city_id}` 接收带来源与时间的居民、应急部门行动记录；未接入时返回 503。记录尚未自动进入影响模型。
+- 居民行为与应急响应中的一部分目前由规则和假设产生；真实响应观测的接入与校验仍是后续工作。
+- WAM 提供受约束的方案建议与人工批准记录；自动误差诊断、跨事件回测和受控 RSI 更新尚未实现。
 
-### 决策闭环
-WAM 优化 → 提交决策建议 → 人工批准/驳回 → 执行 → 效果回评（SHA-256 审计链）。
+## 本地启动
 
-### What-if 推演
-台风路径平移/增强 → 降雨/滑坡/内涝/增水四链对比 + 三情景对比表。
-
-### 页面（7）
-态势总览（简报+告警+内涝概率桶+2D/3D地图+风暴潮+What-if）· 世界模型 · 自主优化（决策闭环）· 知识库 · 台风 · 风暴潮 · 滑坡
-
-## 快速启动
+建议使用 Python 3.12。后端依赖列在 `backend/requirements.txt`；前端使用 Node 18+。
 
 ```bash
-# 后端 (Python 3.10+)
-cd backend && pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# 前端 (Node 18+)
-cd frontend && npm run build && npm run preview -- --port 4173
-# 打开 http://localhost:4173
+python3.12 -m venv backend/.venv
+backend/.venv/bin/python -m pip install -r backend/requirements.txt
+backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-## 质量保障
+另一个终端启动前端：
 
-| 项 | 状态 |
-|----|------|
-| 单元测试 | **128 通过**（`python -m unittest discover -s tests`）|
-| 真实性检验 | **20/20**（`backend/scripts/verify_truth.py`）|
-| E2E 用户旅程 | **10/10**（`backend/scripts/e2e_journey.py`）|
-| OpenAPI 文档 | 71 端点 |
-| 模型再训练 | `backend/scripts/retrain.py` |
-
-## 目录结构
-```
-cityos-flood-github/    主项目（FastAPI 42 模块 + React v5 42 组件）
-├── backend/app/        knowledge(知识库) / surge(风暴潮) / decision(决策) / live_ops(实时) / cascade(链式)
-├── backend/scripts/    verify_truth.py / e2e_journey.py / retrain.py / health_monitor.sh
-├── frontend/src/       7 页面 + 42 组件
-├── docs/               KNOWLEDGE_BASE.md / TRAINING_REPORT.md
-└── tests/              128 单元测试
-shenzhen-flood/         数据工作区（unified/ml_models/raw/processed）
+```bash
+cd frontend
+npm ci
+npm run dev
 ```
 
-⚠️ `.env` 含全部 API 凭据，已 gitignore，勿上传公开渠道。
+可选外部研究数据放在 `backend/data/external/`，或设置 `CITYOS_EXTERNAL_DATA_DIR` 指向现有数据根目录。需要的相对文件名可从 `/api/data/research-status` 查看。目录已加入 `.gitignore`；添加数据后请重启后端以刷新缓存。模型 `.pkl` 仅应加载自己信任的文件。无外部数据时基础服务仍可启动，但潮位谐波、居民影响细栅格、部分 What-if 链路不会给出数值结果。
+
+## 验证和研究路线
+
+```bash
+backend/.venv/bin/python -m unittest discover -s tests
+cd frontend && npm run build
+```
+
+缺少真实人口和潮位原始文件时，相关集成测试会明确跳过；跳过不等于完成验证。历史验证指标需与具体数据和模型版本一起复核。原有 `verify_truth.py` 和 `e2e_journey.py` 含外部实时源、缺失模型或旧口径断言，尚不能作为完整真实性或运营就绪证明。
+
+区域架构、真实世界反应数据和受控 RSI 的实施顺序见 [区域研究路线](docs/REGIONAL_RESEARCH_ROADMAP.md)。

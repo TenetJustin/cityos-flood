@@ -59,8 +59,8 @@ export default function MLModelsPanel() {
   return (
     <div className="card ml-panel">
       <div className="panel-title">
-        🤖 本地监督学习模型（真实标签训练 · 非物理代理）
-        <span className="ml-sub">训练脚本：shenzhen-flood/scripts/ml/ · 模型：HistGradientBoosting</span>
+        🤖 本地监督学习模型（以本机实际加载状态为准）
+        <span className="ml-sub">缺少模型文件时不提供预测；历史指标不代表当前可运行状态</span>
       </div>
 
       <div className="ml-models">
@@ -79,9 +79,9 @@ export default function MLModelsPanel() {
               </div>
               <div className="mlm-metric"><span>Holdout AUC</span><b>{fs.holdout_auc}</b></div>
               <div className="mlm-metric small"><span>样本</span><b>{fs.n_samples}（正{fs.n_positive}）</b></div>
-              <button className="mlm-btn" onClick={runFloodTest}>实测：福田CBD vs 宝安沿海</button>
+              <button className="mlm-btn" onClick={runFloodTest}>情景测试：福田CBD vs 宝安沿海</button>
             </>
-          ) : <div className="mlm-pending">模型未加载</div>}
+          ) : <div className="mlm-pending">模型或指标文件未接入</div>}
         </div>
 
         {/* 模型③ */}

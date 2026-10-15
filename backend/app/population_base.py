@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 
 from . import gisreal, gridrisk, risk, shenzhen
+from .data_paths import EXTERNAL_DATA, require_external
 from .human_config import (
     BUILDING_CLASSES,
     COHORTS,
@@ -41,12 +42,7 @@ from .human_config import (
     VULN_WEIGHTS,
 )
 
-_SZ_FLOOD_DATA = Path(
-    os.environ.get(
-        "SZ_FLOOD_DATA_BASE",
-        str(Path(__file__).resolve().parents[3] / "shenzhen-flood" / "data"),
-    )
-)
+_SZ_FLOOD_DATA = EXTERNAL_DATA
 POP_CSV = _SZ_FLOOD_DATA / "unified" / "population_grid_100m.csv"
 BUILDING_CSV = _SZ_FLOOD_DATA / "unified" / "building_point.csv"
 
@@ -76,7 +72,8 @@ def _bin_population(res: float = GRID_RES) -> np.ndarray:
     with _LOCK:
         if key in _CACHE:
             return _CACHE[key]
-    df = pd.read_csv(POP_CSV, usecols=["lon", "lat", "population"])
+    df = pd.read_csv(require_external("unified", "population_grid_100m.csv"),
+                     usecols=["lon", "lat", "population"])
     nlat = int(round((gridrisk.LAT1 - gridrisk.LAT0) / res))
     nlon = int(round((gridrisk.LON1 - gridrisk.LON0) / res))
     i = np.clip(((df["lat"].values - gridrisk.LAT0) / res).astype(int), 0, nlat - 1)
@@ -94,7 +91,8 @@ def _bin_buildings(res: float = GRID_RES) -> Dict[str, np.ndarray]:
     with _LOCK:
         if key in _CACHE:
             return _CACHE[key]
-    df = pd.read_csv(BUILDING_CSV, usecols=["building_type", "lon", "lat"])
+    df = pd.read_csv(require_external("unified", "building_point.csv"),
+                     usecols=["building_type", "lon", "lat"])
     df = df.dropna(subset=["lon", "lat"])
     nlat = int(round((gridrisk.LAT1 - gridrisk.LAT0) / res))
     nlon = int(round((gridrisk.LON1 - gridrisk.LON0) / res))
@@ -300,7 +298,8 @@ def _facility_points() -> Dict[str, List[Dict[str, float]]]:
     with _LOCK:
         if "facility_points" in _CACHE:
             return _CACHE["facility_points"]
-    df = pd.read_csv(BUILDING_CSV, usecols=["building_type", "lon", "lat"])
+    df = pd.read_csv(require_external("unified", "building_point.csv"),
+                     usecols=["building_type", "lon", "lat"])
     df = df.dropna(subset=["lon", "lat"])
     out = {
         "hospital": [],

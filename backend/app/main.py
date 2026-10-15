@@ -8,6 +8,7 @@ from typing import Annotated, Optional
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import UploadFile
 
@@ -42,6 +43,8 @@ from . import (
     weather,
 )
 from .risk import district_vulnerability
+from .data_paths import MissingResearchDataError, require_external, research_data_status
+from .realworld_response import InvalidResponseDataError
 
 
 _SCENARIO_OVERRIDE_FIELDS = frozenset({
@@ -294,6 +297,23 @@ app = FastAPI(
     description="城市内涝、海岸洪涝、河流山洪、地质灾害和台风统一强迫的可审计世界模型",
     version="4.0.0",
 )
+
+
+@app.exception_handler(MissingResearchDataError)
+async def _missing_research_data(_request: Request, exc: MissingResearchDataError):
+    return JSONResponse(
+        status_code=503,
+        content={"error": "research_data_unavailable", "dataset": exc.dataset,
+                 "detail": str(exc), "status_url": "/api/data/research-status"},
+    )
+
+
+@app.exception_handler(InvalidResponseDataError)
+async def _invalid_response_data(_request: Request, exc: InvalidResponseDataError):
+    return JSONResponse(status_code=422,
+                        content={"error": "invalid_response_data", "detail": str(exc)})
+
+
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
@@ -356,6 +376,28 @@ def health():
         "model_version": forecasting.MODEL_VERSION,
         "time": time.time(),
     }
+
+
+@app.get("/api/data/research-status")
+def api_research_data_status():
+    """Report which optional research datasets and derived capabilities exist."""
+    return research_data_status()
+
+
+@app.get("/api/region/cities")
+def api_region_cities():
+    """Selected study cities and their current implementation status."""
+    from .region import city_catalog
+    return city_catalog()
+
+
+@app.get("/api/region/responses/{city_id}")
+def api_region_responses(city_id: str, event_id: Optional[str] = None):
+    """Source-backed observations of resident and emergency actions."""
+    from .realworld_response import CITY_IDS, observations
+    if city_id not in CITY_IDS:
+        raise HTTPException(status_code=404, detail="城市不在研究范围内")
+    return observations(city_id, event_id)
 
 
 def _json_arrays(value):
@@ -1592,6 +1634,10 @@ def api_cascade_whatif(
 ):
     """台风情景推演：路径平移/强度缩放 → 灾害链（降雨/滑坡/内涝）对比。"""
     from . import cascade
+    require_external("unified", "typhoon_track.csv")
+    require_external("ml_models", "landslide_warning.pkl")
+    if not name:
+        require_external("unified", "typhoon_forecast.csv")
     r = cascade.whatif_typhoon(
         name=name or None,
         dist_shift_km=dist_shift_km,

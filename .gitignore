@@ -17,6 +17,8 @@ __pycache__/
 !.env.example
 backend/data/user/
 backend/data/.cache_*/
+backend/data/cache/
+backend/data/external/
 ml/outputs/*.pt
 ml/outputs/*.pkl
 shenzhen-flood/data/raw/sz_*

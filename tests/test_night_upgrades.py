@@ -15,6 +15,9 @@ class SurgeModuleTest(unittest.TestCase):
     def test_harmonics_fit_and_predict(self):
         """潮汐谐波拟合可用 + 任意日期可推算。"""
         from backend.app import surge
+        from backend.app.data_paths import external_file
+        if not external_file("unified", "tide_timeseries.csv").is_file():
+            self.skipTest("需配置真实潮位时间序列后运行谐波集成测试")
         h = surge.fit_harmonics()
         self.assertIn("hko_cheungchau", h)
         # 推算一段
@@ -28,6 +31,9 @@ class SurgeModuleTest(unittest.TestCase):
     def test_harmonic_rmse_bound(self):
         """谐波拟合 RMSE 上界（精度门槛）。"""
         from backend.app import surge
+        from backend.app.data_paths import external_file
+        if not external_file("unified", "tide_timeseries.csv").is_file():
+            self.skipTest("需配置真实潮位时间序列后运行精度检验")
         h = surge.fit_harmonics()
         for sid, meta in h.items():
             self.assertLess(meta["rmse"], 0.15, f"{sid} 拟合 RMSE 过高")

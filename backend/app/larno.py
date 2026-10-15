@@ -32,13 +32,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from .data_paths import external_file
 
 # 数据位置：优先环境变量 LARNO_DATA_BASE，否则默认相对本仓库的
 # shenzhen-flood/data/larno/region1_20m。
 DATA_BASE = Path(
     os.environ.get(
         "LARNO_DATA_BASE",
-        str(Path(__file__).resolve().parents[3] / "shenzhen-flood" / "data" / "larno" / "region1_20m"),
+        str(external_file("larno", "region1_20m")),
     )
 )
 

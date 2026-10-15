@@ -175,5 +175,10 @@ def run():
 if __name__ == "__main__":
     if "--base" in sys.argv:
         BASE = sys.argv[sys.argv.index("--base") + 1]
-    ok = run()
+    try:
+        ok = run()
+    except (KeyError, IndexError, TypeError, ValueError, OSError) as exc:
+        print(f"真实性检查未完成：{type(exc).__name__}: {exc}")
+        print("请先检查 /api/data/research-status；缺失原始数据或模型指标时不能宣称通过。")
+        sys.exit(2)
     sys.exit(0 if ok else 1)

@@ -23,12 +23,17 @@ warnings.filterwarnings("ignore")
 
 from backend.app import cascade_model, hazard_adapters, human_impact  # noqa: E402
 from backend.app import population_base  # noqa: E402
+from backend.app.data_paths import external_file  # noqa: E402
 
 
 class HumanImpactValidation(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        required = (external_file("unified", "population_grid_100m.csv"),
+                    external_file("unified", "building_point.csv"))
+        if not all(path.is_file() for path in required):
+            raise unittest.SkipTest("需配置真实人口与建筑数据后运行居民影响集成测试")
         cls.cells = population_base.population_grid()["cells"]
         cls.cells_by_id = {c["grid_id"]: c for c in cls.cells}
 

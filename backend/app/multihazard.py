@@ -13,6 +13,7 @@ import json
 import numpy as np
 import pandas as pd
 from . import data_loader
+from .data_paths import external_file
 
 SZ_CENTER = (22.5431, 114.0579)
 
@@ -219,9 +220,7 @@ def landslide_summary():
 def scene3d(dem_step=8, building_min_height=40, building_limit=5000):
     """3D 场景数据：地形高度图 + 建筑 + 灾种点。"""
     # DEM
-    dem_path = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "shenzhen-flood",
-        "data", "processed", "shenzhen_dem30.npy"))
+    dem_path = str(external_file("processed", "shenzhen_dem30.npy"))
     meta_path = dem_path.replace("shenzhen_dem30.npy", "shenzhen_dem30_meta.json")
     terrain = None
     if os.path.exists(dem_path):

@@ -27,14 +27,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import shenzhen
+from .data_paths import EXTERNAL_DATA
 
 DATA_BASE = Path(__file__).resolve().parent.parent / "data"
-_SZ_FLOOD_DATA = Path(
-    os.environ.get(
-        "SZ_FLOOD_DATA_BASE",
-        str(Path(__file__).resolve().parents[3] / "shenzhen-flood" / "data"),
-    )
-)
+_SZ_FLOOD_DATA = EXTERNAL_DATA
 CATALOG_FILE = _SZ_FLOOD_DATA / "earthquake" / "sz_region_quakes.csv"
 FAULTS_FILE = DATA_BASE / "earthquake" / "shenzhen_faults.json"
 

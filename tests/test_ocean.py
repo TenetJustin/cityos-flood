@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -73,7 +74,9 @@ class OceanBoundaryTest(unittest.TestCase):
         self.assertIsNone(hourly[1]["observed_level_m"])
 
     def test_simulation_couples_high_sea_level_to_drainage(self):
-        times = [f"2026-08-{23 + h // 24:02d}T{h % 24:02d}:00:00+08:00" for h in range(24)]
+        first = datetime.now(timezone(timedelta(hours=8))).replace(
+            minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        times = [(first + timedelta(hours=h)).isoformat() for h in range(24)]
         rain = [8.0] * 24
         fake = {
             "times": times,

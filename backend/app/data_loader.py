@@ -21,10 +21,10 @@ data_loader.py — 统一数据层加载器（v4.0 多灾种增强）
 import os
 import numpy as np
 import pandas as pd
+from .data_paths import external_file
 
 # 统一数据层路径：shenzhen-flood/data/unified（与 cityos 仓库同级）
-_BASE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "shenzhen-flood", "data", "unified"))
+_BASE = str(external_file("unified"))
 
 _cache = {}
 

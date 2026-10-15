@@ -13,9 +13,9 @@ import os
 import json
 import pickle
 import numpy as np
+from .data_paths import external_file
 
-_ML_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "shenzhen-flood", "data", "ml_models"))
+_ML_DIR = str(external_file("ml_models"))
 
 _cache = {}
 

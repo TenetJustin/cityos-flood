@@ -32,10 +32,11 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
+from .data_paths import BACKEND_DATA, EXTERNAL_DATA, require_external
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_DATA = os.path.normpath(os.path.join(_HERE, "..", "..", "..", "shenzhen-flood", "data"))
-_HARMONIC_CACHE = os.path.join(_DATA, "ml_models", "tide_harmonics.pkl")
+_DATA = str(EXTERNAL_DATA)
+_HARMONIC_CACHE = str(BACKEND_DATA / "cache" / "tide_harmonics.pkl")
 
 # ============ ① 天文潮谐波 ============
 
@@ -68,7 +69,7 @@ def _design_matrix(t_hours: np.ndarray) -> np.ndarray:
 
 def fit_harmonics():
     """从 HKO 天文潮数据拟合各站谐波系数（结果缓存 pkl）。"""
-    tide_path = os.path.join(_DATA, "unified", "tide_timeseries.csv")
+    tide_path = require_external("unified", "tide_timeseries.csv")
     tide = pd.read_csv(tide_path)
     tide["ts"] = pd.to_datetime(tide["timestamp_bj"])
     out = {}
@@ -98,7 +99,9 @@ def fit_harmonics():
 
 
 def _load_harmonics():
-    if os.path.exists(_HARMONIC_CACHE):
+    tide_path = require_external("unified", "tide_timeseries.csv")
+    if (os.path.exists(_HARMONIC_CACHE)
+            and os.path.getmtime(_HARMONIC_CACHE) >= tide_path.stat().st_mtime):
         with open(_HARMONIC_CACHE, "rb") as f:
             return pickle.load(f)
     return fit_harmonics()

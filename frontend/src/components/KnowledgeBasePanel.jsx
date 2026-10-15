@@ -728,6 +728,7 @@ function ModelsTab() {
 
   return (
     <div className="kb-models">
+      <p>{models.note}</p>
       {(models.models || []).map((m) => (
         <div key={m.id} className="card kb-model-card">
           <div className="kb-model-head">
@@ -735,9 +736,10 @@ function ModelsTab() {
             <span className="kb-model-task">{m.task}</span>
           </div>
           <div className="kb-model-grid">
+            <div className="kb-model-kv"><span>当前文件</span><b>{m.artifact_available && m.metrics_file_available ? '已接入' : '未完整接入'}</b></div>
             <div className="kb-model-kv"><span>标签</span><b>{m.labels}</b></div>
             <div className="kb-model-kv"><span>验证</span><b>{m.validation}</b></div>
-            <div className="kb-model-kv"><span>主指标</span><b className="kb-model-metric">
+            <div className="kb-model-kv"><span>历史报告指标</span><b className="kb-model-metric">
               {m.test_auc ? `AUC ${m.test_auc}` : m.spatial_cv_auc ? `CV AUC ${m.spatial_cv_auc}` : `拟合 R² ${m.fit_r2}`}
             </b></div>
             <div className="kb-model-kv"><span>特征</span><b>{(m.top_features || []).join(' · ')}</b></div>
@@ -748,7 +750,7 @@ function ModelsTab() {
           </div>
         </div>
       ))}
-      <p className="kb-disclaimer">指标全部来自真实标签训练与防泄漏验证（空间分块 / 留一事件 / 时间外）；详见 docs/TRAINING_REPORT.md。</p>
+      <p className="kb-disclaimer">这些是历史研究报告指标；当前请求不会重新训练或复核。模型文件、指标文件缺失时，不能据此宣称模型已上线。</p>
     </div>
   )
 }
