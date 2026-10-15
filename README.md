@@ -37,9 +37,10 @@ npm run dev
 
 ```bash
 backend/.venv/bin/python -m unittest discover -s tests
+backend/.venv/bin/python -m backend.app.evidence_audit
 cd frontend && npm run build
 ```
 
 缺少真实人口和潮位原始文件时，相关集成测试会明确跳过；跳过不等于完成验证。历史验证指标需与具体数据和模型版本一起复核。原有 `verify_truth.py` 和 `e2e_journey.py` 含外部实时源、缺失模型或旧口径断言，尚不能作为完整真实性或运营就绪证明。
 
-区域架构、真实世界反应数据和受控 RSI 的实施顺序见 [区域研究路线](docs/REGIONAL_RESEARCH_ROADMAP.md)。
+区域架构、真实世界反应数据和受控 RSI 的实施顺序见 [区域研究路线](docs/REGIONAL_RESEARCH_ROADMAP.md)；五城数据缺口和结构性审计的边界见 [五城数据证据层](docs/FIVE_CITY_DATA_EVIDENCE.md)。
