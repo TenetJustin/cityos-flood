@@ -45,6 +45,7 @@ from . import (
 from .risk import district_vulnerability
 from .data_paths import MissingResearchDataError, require_external, research_data_status
 from .realworld_response import InvalidResponseDataError
+from .event_evidence import InvalidEventEvidenceError
 
 
 _SCENARIO_OVERRIDE_FIELDS = frozenset({
@@ -314,6 +315,12 @@ async def _invalid_response_data(_request: Request, exc: InvalidResponseDataErro
                         content={"error": "invalid_response_data", "detail": str(exc)})
 
 
+@app.exception_handler(InvalidEventEvidenceError)
+async def _invalid_event_evidence(_request: Request, exc: InvalidEventEvidenceError):
+    return JSONResponse(status_code=422,
+                        content={"error": "invalid_event_evidence", "detail": str(exc)})
+
+
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
@@ -398,6 +405,18 @@ def api_region_responses(city_id: str, event_id: Optional[str] = None):
     if city_id not in CITY_IDS:
         raise HTTPException(status_code=404, detail="城市不在研究范围内")
     return observations(city_id, event_id)
+
+
+@app.get("/api/region/evidence/{city_id}")
+def api_region_evidence(city_id: str, event_id: Optional[str] = None,
+                        phenomenon: Optional[str] = None):
+    """Query source-attributed event records; never a validated forecast input."""
+    from .event_evidence import CITY_IDS, PHENOMENA, observations
+    if city_id not in CITY_IDS:
+        raise HTTPException(status_code=404, detail="城市不在研究范围内")
+    if phenomenon is not None and phenomenon not in PHENOMENA:
+        raise HTTPException(status_code=422, detail="未知现象")
+    return observations(city_id, event_id, phenomenon)
 
 
 def _json_arrays(value):

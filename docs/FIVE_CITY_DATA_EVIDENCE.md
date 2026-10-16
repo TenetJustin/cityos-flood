@@ -6,7 +6,7 @@
 backend/.venv/bin/python -m backend.app.evidence_audit > evidence-audit.json
 ```
 
-输出按资产列出文件缺失、字段缺失、关键字段空值、重复键、时间格式/时区、反应记录的发布时刻早于发生时刻等问题。`structural_checks_passed` **仅表示这些结构规则通过**，不表示来源真实、观测准确、事件覆盖充分或可用于预警。审计不会下载、改写或补全数据；默认读取仓库内深圳样本和 `CITYOS_EXTERNAL_DATA_DIR/cities/<city_id>/responses.csv`。
+输出按资产列出文件缺失、字段缺失、关键字段空值、重复键、时间格式/时区、反应记录的发布时刻早于发生时刻等问题。五城的 `responses.csv` 和 `event_evidence.csv` 均纳入检查；后者另查现象、单位、数值和高程基准的基本规则。`structural_checks_passed` **仅表示这些结构规则通过**，不表示来源真实、观测准确、事件覆盖充分或可用于预警。审计不会下载、改写或补全数据；默认读取仓库内深圳样本和 `CITYOS_EXTERNAL_DATA_DIR/cities/<city_id>/` 下的可选文件。详细列名见 [区域研究路线](REGIONAL_RESEARCH_ROADMAP.md)。
 
 ## 跨城候选来源（尚未接入五城模型）
 

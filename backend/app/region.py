@@ -49,6 +49,7 @@ def city_catalog() -> dict:
             "external_city_data_dir": str(city_dir),
             "city_data_dir_present": city_dir.is_dir(),
             "response_observations_file_present": (city_dir / "responses.csv").is_file(),
+            "event_evidence_file_present": (city_dir / "event_evidence.csv").is_file(),
             "observational_assets": configured_assets,
             "operational_warning_ready": False,
         })

@@ -22,6 +22,14 @@ city_id,event_id,actor_type,action_type,action_status,observed_at,available_at,a
 
 `actor_type` 只接受 `resident` 或 `emergency_department`；`action_status` 只接受 `reported`、`executed`、`verified`；`evidence_level` 只接受 `observed` 或 `official_record`；两个时间需有时区。`affected_count` 可留空。该接口只接收有明确来源的记录，返回值仍标记为“来源已登记、未独立核查”，当前不会自动反馈给影响模型。
 
+同事件雨量、潮位、河水位、积水深度与道路中断的首个接入口为 `CITYOS_EXTERNAL_DATA_DIR/cities/<city_id>/event_evidence.csv`，查询接口是 `GET /api/region/evidence/<city_id>?event_id=...&phenomenon=...`。CSV 列为：
+
+```text
+record_id,city_id,event_id,phenomenon,site_id,area,observed_at,available_at,value,unit,datum,spatial_resolution,temporal_resolution,source_name,source_reference,license,evidence_level,quality_flags
+```
+
+一行表示某事件、某站点/路段、某现象、某观测时刻的一条记录。`phenomenon` 取 `rainfall`（mm）、`tide_level`/`river_level`/`flood_depth`（m）或 `road_closure`（0/1，`boolean`）；潮位和河水位必须填写明确高程基准。`observed_at` 与 `available_at` 均须有时区，后者不得早于前者。`evidence_level` 限 `observed`、`official_record`、`derived`，卫星估计或推算结果应标为 `derived`。不适用的高程基准填 `not_applicable`；无额外质量标记填 `none`。不能凭自填来源字段认定原件真实，接口仅检查结构和基本领域规则，明确返回 `ground_truth_ready=false`、`forecast_input_ready=false`。
+
 ## 实施门槛
 
 1. **深圳基线**：可重复安装、启动、测试；缺失可选数据时返回明确状态；修正夸大的真实性表述。现阶段已启动这一部分。

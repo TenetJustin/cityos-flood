@@ -10,8 +10,12 @@ import json
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
+
+from pydantic import ValidationError
 
 from .data_paths import BACKEND_DATA, EXTERNAL_DATA
+from .event_evidence import CSV_FIELDS as EVENT_FIELDS, EventEvidence
 from .region import CITIES
 
 
@@ -44,7 +48,8 @@ def _parse_time(value: str, fmt: str | None = None) -> datetime:
 
 def audit_csv(path: Path, *, required: list[str] | tuple[str, ...],
               key: list[str] | tuple[str, ...] = (), time_field: str | None = None,
-              time_format: str | None = None, response_city: str | None = None) -> dict:
+              time_format: str | None = None, response_city: str | None = None,
+              row_validator: Callable[[dict], object] | None = None) -> dict:
     """Check schema, completeness, duplicates, time and provenance of one CSV."""
     if not path.is_file():
         return {"status": "missing", "path": str(path), "rows": 0,
@@ -61,6 +66,7 @@ def audit_csv(path: Path, *, required: list[str] | tuple[str, ...],
             naive_times = 0
             invalid_order = 0
             wrong_city = 0
+            invalid_domain_rows = 0
             first = last = None
             rows = 0
             for row in reader:
@@ -95,6 +101,11 @@ def audit_csv(path: Path, *, required: list[str] | tuple[str, ...],
                             invalid_order += 1
                     except (KeyError, ValueError):
                         invalid_times += 1
+                if row_validator:
+                    try:
+                        row_validator(row)
+                    except (ValidationError, ValueError, TypeError):
+                        invalid_domain_rows += 1
     except (UnicodeError, csv.Error, OSError) as exc:
         return {"status": "unreadable", "path": str(path), "rows": 0,
                 "issues": [type(exc).__name__]}
@@ -113,6 +124,8 @@ def audit_csv(path: Path, *, required: list[str] | tuple[str, ...],
         issues.append("available_before_observed")
     if wrong_city:
         issues.append("wrong_city_id")
+    if invalid_domain_rows:
+        issues.append("invalid_domain_rows")
     if any(counts.values()):
         issues.append("required_values_missing")
     return {
@@ -122,6 +135,7 @@ def audit_csv(path: Path, *, required: list[str] | tuple[str, ...],
         "duplicate_keys": duplicate_keys, "invalid_timestamps": invalid_times,
         "timezone_missing": naive_times, "available_before_observed": invalid_order,
         "wrong_city_id": wrong_city, "first_timestamp": first, "last_timestamp": last,
+        "invalid_domain_rows": invalid_domain_rows,
         "issues": issues,
     }
 
@@ -148,6 +162,16 @@ def audit_inventory(*, bundled_root: Path = BACKEND_DATA,
                                           key=("city_id", "event_id", "actor_type",
                                                "action_type", "observed_at", "area"),
                                           response_city=city_id)})
+        evidence_path = external_root / "cities" / city_id / "event_evidence.csv"
+        assets.append({"id": f"{city_id}_event_evidence", "city_id": city_id,
+                       "kind": "event_evidence", "root": "external",
+                       "path": f"cities/{city_id}/event_evidence.csv",
+                       "limitations": ["source_recorded_not_independently_verified",
+                                       "not_forecast_input_or_ground_truth"],
+                       "audit": audit_csv(evidence_path, required=EVENT_FIELDS,
+                                          key=("event_id", "phenomenon", "site_id", "observed_at"),
+                                          time_field="observed_at", response_city=city_id,
+                                          row_validator=EventEvidence.model_validate)})
     return {"assessment": "structural_only_not_independent_validation",
             "operational_warning_ready": False,
             "cities": [city["id"] for city in CITIES], "assets": assets,
