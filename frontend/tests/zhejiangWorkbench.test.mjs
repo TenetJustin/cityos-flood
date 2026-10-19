@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { scenarioAssessment, ZHEJIANG_CITIES, ZHEJIANG_SOURCES } from '../src/zhejiangData.js'
-import { normalizeZhejiangMetars, unavailableZhejiangSnapshot } from '../src/zhejiangObservations.js'
+import { assessZhejiangSnapshot, normalizeZhejiangMetars, unavailableZhejiangSnapshot } from '../src/zhejiangObservations.js'
 
 test('Zhejiang scope contains four distinct cities and source leads retain access status', () => {
   assert.deepEqual(ZHEJIANG_CITIES.map(({ id }) => id), ['ningbo', 'taizhou', 'wenzhou', 'hangzhou'])
@@ -30,4 +30,18 @@ test('four-city airport adapter preserves missing stations and observation time'
   assert.equal(snapshot.stations[0].latest.available_at, null)
   assert.equal(snapshot.stations[1].latest, null)
   assert.equal(unavailableZhejiangSnapshot(fetchedAt).stations.every((station) => station.latest === null), true)
+  assert.deepEqual(assessZhejiangSnapshot(snapshot).missing, ['taizhou', 'wenzhou'])
+  assert.equal(assessZhejiangSnapshot(snapshot).valid, true)
+  assert.equal(assessZhejiangSnapshot(unavailableZhejiangSnapshot(fetchedAt)).valid, true)
+})
+
+test('snapshot quality check rejects absent availability time and duplicate city rows', () => {
+  const snapshot = normalizeZhejiangMetars([{ icaoId: 'ZSNB', obsTime: Date.parse('2026-10-19T23:00:00.000Z') / 1000 }], '2026-10-20T00:00:00.000Z')
+  const missingTime = structuredClone(snapshot)
+  delete missingTime.stations[0].history[0].available_at
+  assert.deepEqual(assessZhejiangSnapshot(missingTime).issues, ['available_at_invalid'])
+  const duplicateCity = structuredClone(snapshot)
+  duplicateCity.stations[1] = structuredClone(duplicateCity.stations[0])
+  assert.equal(assessZhejiangSnapshot(duplicateCity).valid, false)
+  assert.ok(assessZhejiangSnapshot(duplicateCity).issues.includes('station_identity_invalid'))
 })
