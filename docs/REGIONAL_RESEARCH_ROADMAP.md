@@ -10,6 +10,11 @@
 
 ## 数据契约
 
+规范 v1.0 见 [五城共用数据与事件接口](FIVE_CITY_EVENT_CONTRACT.md)，可执行模型位于
+`backend/app/evidence_contract.py`。下述 CSV 是旧版兼容入口；新事件应优先使用
+`cities/<city_id>/events/<event_id>/manifest.json`，并严格区分 observation、
+historical_record、model_inference、simulation_scenario 和 missing。
+
 每条用于验证或响应分析的事件记录至少应有：`city_id`、`event_id`、`phenomenon`、`source_name`、`source_reference`、`observed_at`、`available_at`、`geometry_or_area`、`spatial_resolution`、`temporal_resolution`、`value`、`unit`、`datum`（若涉及高程）、`quality_flags`、`license`、`evidence_level`。`evidence_level` 取 `observed`、`official_record`、`derived`、`modelled`、`parameterized`、`scenario`、`assumed`。居民和部门行动还要记录 `actor_type`、`action_type`、`action_start`、`action_end`、`affected_count` 或 `asset_id`，以及“计划、已执行、事后核实”的状态。
 
 进入跨城比较前必须核对时间与时区、潮位/地面高程基准、空间粒度、缺测与重复、事件窗口、发布时刻，避免把事后数据泄漏到事前预测中。
@@ -39,3 +44,19 @@ record_id,city_id,event_id,phenomenon,site_id,area,observed_at,available_at,valu
 5. **受控 RSI**：对真实结果与预测差异进行归因，仅生成参数、规则或模型组合的候选版本；完成多城多事件回测、来源检查、越界与安全校验后，由人工批准并影子运行。任何候选都不能自行修改安全门槛、自动接管现实设施或将模型输出当作真实标签。
 
 发布任何“预警能力”或“调度能力”声明前，还需要独立事件验证、数据更新服务等级、值班责任、与主管部门的联动协议及可回退演练。当前交付属于研究型决策支持原型。
+
+## 分阶段实施与退出条件
+
+| 阶段 | 交付 | 退出条件 | 当前状态 |
+|---|---|---|---|
+| 0 基线审计 | remote/分支、代码、架构、测试和真实性声明清单 | 可重复测试；所有缺失依赖可见 | 已完成本地基线；137 项通过、3 项因外部数据缺失跳过 |
+| 1 证据契约 | 五城事件 manifest、五类证据、双时间、空间/高程、许可、质量和缺失语义 | 契约测试通过；事件不能自动晋级真值 | 本次实现 |
+| 2 事件证据包 | 每城至少一个有来源的候选事件；深圳 9·7 为首个端到端候选 | 原件/许可核对；逐站雨水潮河与影响数据缺口清零或量化 | 未达到；见事件证据清单 |
+| 3 五城模型 | 共用物理/统计内核 + 五城独立边界、参数、版本和验证事件 | 每城事件外回测；不得复用深圳参数冒充本地校准 | 未实现 |
+| 4 区域统筹 | 同口径指标、不确定性和证据等级汇总 | 只汇总已验证结果；缺城不插补成“区域结论” | 未实现 |
+| 5 影响评估 | 居民、交通、关键设施和部门行动的观测/情景分层 | 真实行动与假设行为完全分离；偏差和覆盖率已报告 | 未实现 |
+| 6 受控 RSI | 误差诊断、候选调整、冻结回测、安全检查、人工批准、影子运行、回退 | 全部门槛有审计记录；版本变更必须人工签署 | 仅有原则，无闭环实现 |
+
+第一阶段不编辑预测或调度算法。DeepSeek Harness 的独立任务边界和验收见
+[任务卡](DEEPSEEK_HARNESS_TASK_CARD_PHASE1.md)；其分支完成后必须先独立审查和回测，
+未经批准不合并主分支。

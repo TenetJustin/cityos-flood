@@ -46,6 +46,7 @@ from .risk import district_vulnerability
 from .data_paths import MissingResearchDataError, require_external, research_data_status
 from .realworld_response import InvalidResponseDataError
 from .event_evidence import InvalidEventEvidenceError
+from .evidence_contract import InvalidEventManifestError
 
 
 _SCENARIO_OVERRIDE_FIELDS = frozenset({
@@ -321,6 +322,12 @@ async def _invalid_event_evidence(_request: Request, exc: InvalidEventEvidenceEr
                         content={"error": "invalid_event_evidence", "detail": str(exc)})
 
 
+@app.exception_handler(InvalidEventManifestError)
+async def _invalid_event_manifest(_request: Request, exc: InvalidEventManifestError):
+    return JSONResponse(status_code=422,
+                        content={"error": "invalid_event_manifest", "detail": str(exc)})
+
+
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
@@ -417,6 +424,15 @@ def api_region_evidence(city_id: str, event_id: Optional[str] = None,
     if phenomenon is not None and phenomenon not in PHENOMENA:
         raise HTTPException(status_code=422, detail="未知现象")
     return observations(city_id, event_id, phenomenon)
+
+
+@app.get("/api/region/events/{city_id}/{event_id}")
+def api_region_event_manifest(city_id: str, event_id: str):
+    """Validate and return a five-city event manifest without promoting readiness."""
+    from .evidence_contract import CITY_IDS, load_manifest
+    if city_id not in CITY_IDS:
+        raise HTTPException(status_code=404, detail="城市不在研究范围内")
+    return load_manifest(city_id, event_id)
 
 
 def _json_arrays(value):
