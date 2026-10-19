@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { stationDisplayStatus } from './publicObservations.js'
-import { CITY_CHECKS, scenarioAssessment, ZHEJIANG_CITIES, ZHEJIANG_EVENTS, ZHEJIANG_SOURCES } from './zhejiangData.js'
+import { CITY_CHECKS, ZHEJIANG_CITIES, ZHEJIANG_EVENTS, ZHEJIANG_SOURCES } from './zhejiangData.js'
+import { ResidentBehaviorPanel, ScenarioStudio } from './ScenarioStudio.jsx'
 import './zhejiang.css'
 
 const cityById = (id) => ZHEJIANG_CITIES.find((city) => city.id === id)
@@ -137,7 +138,7 @@ function Points({ city, observations }) {
 
 function Impact({ city }) {
   const layers = [['人口暴露', 'WorldPop / GHS-POP · 数据导入与许可待核'], ['道路交通', '道路与下穿通道 · 城市级中断记录待接入'], ['居民行为', '规则 / Agent 情景 · 需调查与事件记录校准'], ['生命线设施', '停电停水记录 · 需授权']]
-  return <div className="zo-two-col"><Card><SectionTitle kicker="IMPACT / 城市影响" title={`${city.name}居民与设施`}/><div className="zo-impact-hero"><span>影响人口</span><strong>—</strong><small>未接入可用于估算的暴露与积水图层</small></div><div className="zo-impact-grid">{['被困人口', '出行中断', '停电停水', '避难需求'].map((label) => <div key={label}><span>{label}</span><strong>—</strong></div>)}</div></Card><Card><SectionTitle kicker="LAYERS / 证据层" title="分析输入"/>{layers.map(([name, detail]) => <div className="zo-layer-line" key={name}><span className="zo-layer-symbol">◎</span><div><strong>{name}</strong><small>{detail}</small></div><Mark tone="muted">待接入</Mark></div>)}<p className="zo-fineprint">居民行为模拟须标注情景假设；不代表真实个人反应。</p></Card></div>
+  return <div className="zs-stack"><div className="zo-two-col"><Card><SectionTitle kicker="IMPACT / 城市影响" title={`${city.name}居民与设施`}/><div className="zo-impact-hero"><span>实际影响人口</span><strong>—</strong><small>未接入可用于估算的暴露与积水图层</small></div><div className="zo-impact-grid">{['被困人口', '出行中断', '停电停水', '避难需求'].map((label) => <div key={label}><span>{label}</span><strong>—</strong></div>)}</div></Card><Card><SectionTitle kicker="LAYERS / 证据层" title="分析输入"/>{layers.map(([name, detail]) => <div className="zo-layer-line" key={name}><span className="zo-layer-symbol">◎</span><div><strong>{name}</strong><small>{detail}</small></div><Mark tone="muted">待接入</Mark></div>)}<p className="zo-fineprint">下方图像为假设人群的规则分流，不代表真实居民反应。</p></Card></div><ResidentBehaviorPanel city={city}/></div>
 }
 
 function Decision({ city }) {
@@ -154,13 +155,7 @@ function Events({ city }) {
 }
 
 function Scenario({ city }) {
-  const [rain, setRain] = useState(50)
-  const [tide, setTide] = useState('normal')
-  const [river, setRiver] = useState('normal')
-  const [drainage, setDrainage] = useState('normal')
-  const [run, setRun] = useState(null)
-  const result = useMemo(() => run ? scenarioAssessment(run) : null, [run])
-  return <div className="zo-two-col"><Card><SectionTitle kicker="SCENARIO / 参数" title={`${city.name}情景预演`} trailing={<Mark tone="violet">模拟情景</Mark>}/><div className="zo-form-grid"><label>假设 24 小时降雨量 <strong>{rain} mm</strong><input type="range" min="0" max="300" step="5" value={rain} onChange={(e) => setRain(Number(e.target.value))}/></label><label>潮位状态<select value={tide} onChange={(e) => setTide(e.target.value)}><option value="normal">常态</option><option value="high">偏高（假设）</option></select></label><label>河网水位<select value={river} onChange={(e) => setRiver(e.target.value)}><option value="normal">常态</option><option value="high">偏高（假设）</option></select></label><label>排水能力<select value={drainage} onChange={(e) => setDrainage(e.target.value)}><option value="normal">常态</option><option value="reduced">下降（假设）</option></select></label></div><button className="zo-primary zo-run-button" type="button" onClick={() => setRun({ rain, tide, river, drainage })}>运行规则演练 ↗</button><p className="zo-fineprint">输入均为假设值。规则演练用于比较核查优先级，不代表物理内涝预测。</p></Card><Card><SectionTitle kicker="OUTPUT / 演练输出" title="建议视图"/>{result ? <><div className="zo-scenario-result"><span>演练核查优先级</span><strong>{result.label}</strong><small>{result.detail}</small></div><div className="zo-scenario-inputs">24h 降雨 {run.rain} mm · 潮位{run.tide === 'high' ? '偏高' : '常态'} · 河网{run.river === 'high' ? '偏高' : '常态'} · 排水{run.drainage === 'reduced' ? '下降' : '常态'}</div>{CITY_CHECKS[city.id].map((item, index) => <div className="zo-action-line" key={item}><span>0{index + 1}</span><p>{item}</p></div>)}</> : <div className="zo-empty-state zo-empty-small"><span>◈</span><h3>设置条件并运行</h3><p>结果将显示情景核查优先级和城市建议模板。</p></div>}</Card></div>
+  return <ScenarioStudio city={city}/>
 }
 
 function Data({ city }) {
