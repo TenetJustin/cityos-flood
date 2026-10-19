@@ -17,10 +17,17 @@ const LIMITS = {
 }
 
 function boundedNumber(value, key) {
+  if (value === '' || value === null || value === undefined) throw new RangeError(`${key} is required`)
   const number = Number(value)
   const [min, max] = LIMITS[key]
-  if (!Number.isFinite(number) || number < min || number > max) throw new RangeError(`${key} must be between ${min} and ${max}`)
-  return Math.round(number)
+  if (!Number.isInteger(number) || number < min || number > max) throw new RangeError(`${key} must be an integer between ${min} and ${max}`)
+  return number
+}
+
+export function validBeijingLocal(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false
+  const instant = Date.parse(`${value}+08:00`)
+  return Number.isFinite(instant) && new Date(instant + 8 * 3_600_000).toISOString().slice(0, 16) === value
 }
 
 export function normalizeScenario(input) {
@@ -80,10 +87,12 @@ export function scenarioComparisonRows(current, baseline) {
   const fields = [
     ['时间窗', 'horizonHours', '小时'], ['24 小时雨量', 'rainMm24', 'mm'],
     ['1 小时峰值', 'peakMmHour', 'mm'], ['排水能力', 'drainagePct', '%'],
-    ['假设人群', 'exposedPeople', '人'], ['道路可用', 'roadOpenPct', '%'],
-    ['避险容量', 'shelterCapacity', '人'],
+    ['假设人群', 'exposedPeople', '人'], ['预警提前量', 'warningLeadHours', '小时'],
+    ['道路可用', 'roadOpenPct', '%'], ['避险容量', 'shelterCapacity', '人'],
+    ['需协助比例', 'assistanceNeedPct', '%'],
   ]
   return [
+    { label: '事件类型', current: HAZARD_LABELS[current.input.hazard], baseline: HAZARD_LABELS[baseline.input.hazard] },
     ...fields.map(([label, key, unit]) => ({ label, current: `${current.input[key]} ${unit}`, baseline: `${baseline.input[key]} ${unit}` })),
     { label: '潮位 / 河网', current: `${LEVEL_LABELS[current.input.tideState]} / ${LEVEL_LABELS[current.input.riverState]}`, baseline: `${LEVEL_LABELS[baseline.input.tideState]} / ${LEVEL_LABELS[baseline.input.riverState]}` },
     { label: '压力指标', current: `${current.pressure}/${current.pressureMax}`, baseline: `${baseline.pressure}/${baseline.pressureMax}` },
@@ -110,7 +119,7 @@ export function scenarioPlanMarkdown({ cityName, name, result, comparison = null
     `- 核查优先级：${result.priority}（压力指标 ${result.pressure}/${result.pressureMax}；非风险概率）`,
     ...behaviour.map((item) => `- ${item.label}：${item.count} 人（假设分流）`),
     `- 假设避险容量缺口：${result.capacityGap} 人；道路可达缺口：${result.accessGap} 人`, '',
-    ...(comparison ? ['## 情景对照', '', `- 对照：${comparison.name}（同为模拟情景）`, ...scenarioComparisonRows(result, comparison.result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`), ''] : []),
+    ...(comparison ? ['## 情景对照', '', `- 对照：${comparison.name}（同为模拟情景）`, `- 对照起算：${comparison.startBjt ? `${comparison.startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`, ...scenarioComparisonRows(result, comparison.result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`), ''] : []),
     '## 待核查事项', '', ...checks.map((item) => `- [ ] ${item}`), '',
     '## 编制备注与审批', '', reviewNotes || '（待填写）', '',
     '- [ ] 核对真实雨量、潮位、河网和积水证据及时间戳',

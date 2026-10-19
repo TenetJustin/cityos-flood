@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CITY_CHECKS } from './zhejiangData.js'
-import { evaluateScenario, HAZARD_LABELS, LEVEL_LABELS, SCENARIO_DEFAULTS, SCENARIO_MODEL_VERSION, scenarioComparisonRows, scenarioPlanMarkdown } from './scenarioWorkbench.js'
+import { evaluateScenario, HAZARD_LABELS, LEVEL_LABELS, SCENARIO_DEFAULTS, SCENARIO_MODEL_VERSION, scenarioComparisonRows, scenarioPlanMarkdown, validBeijingLocal } from './scenarioWorkbench.js'
 import './scenarioStudio.css'
 
 const SCENARIO_KEY = 'cityos-zhejiang-scenarios-v1'
@@ -63,7 +63,7 @@ export function ResidentBehaviorPanel({ city }) {
 
 function loadScenarios() {
   const value = readStored(SCENARIO_KEY)
-  return Array.isArray(value) ? value.filter((item) => item && typeof item.cityId === 'string' && item.input).slice(-12) : []
+  return Array.isArray(value) ? value.filter((item) => item && typeof item.cityId === 'string' && item.input).slice(-48) : []
 }
 
 function saveMarkdown(name, content) {
@@ -103,7 +103,7 @@ export function ScenarioStudio({ city }) {
   const change = (key, value) => { setInput((current) => ({ ...current, [key]: value })); setResult(null); setDraft(''); setError('') }
   const run = () => {
     try {
-      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(startBjt) || !Number.isFinite(Date.parse(`${startBjt}+08:00`))) throw new RangeError('推演起算时间无效')
+      if (!validBeijingLocal(startBjt)) throw new RangeError('推演起算时间无效')
       setResult(evaluateScenario(input)); setError(''); setDraft('')
     }
     catch (issue) { setResult(null); setError(issue.message) }
@@ -111,13 +111,13 @@ export function ScenarioStudio({ city }) {
   const save = () => {
     if (!result) return
     const record = { id: crypto.randomUUID(), cityId: city.id, name: name.trim().slice(0, 80) || '未命名情景', startBjt, modelVersion: result.modelVersion, input: result.input, createdAt: new Date().toISOString() }
-    const next = [...saved, record].slice(-12)
+    const next = [...saved.filter((item) => item.cityId !== city.id), ...saved.filter((item) => item.cityId === city.id).slice(-11), record].slice(-48)
     if (!setStored(SCENARIO_KEY, next)) { setStorageWarning('浏览器无法保存；仍可下载预案草案。'); return }
     setSaved(next); setCompareId(record.id); setStorageWarning('')
   }
   const generate = () => {
     if (!result) return
-    const text = scenarioPlanMarkdown({ cityName: city.name, name: name.trim(), startBjt, result, comparison: comparison ? { name: comparison.entry.name, result: comparison.result } : null, reviewNotes: notes.trim(), checks: CITY_CHECKS[city.id], createdAt: new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) })
+    const text = scenarioPlanMarkdown({ cityName: city.name, name: name.trim(), startBjt, result, comparison: comparison ? { name: comparison.entry.name, startBjt: comparison.entry.startBjt, result: comparison.result } : null, reviewNotes: notes.trim(), checks: CITY_CHECKS[city.id], createdAt: new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) })
     setDraft(text)
     const stored = readStored(DRAFT_KEY)
     if (!setStored(DRAFT_KEY, { ...stored, [city.id]: notes.trim() })) setStorageWarning('浏览器无法保存备注；请下载草案留存。')
