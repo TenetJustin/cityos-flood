@@ -2,7 +2,7 @@
 
 CityOS 面向宁波、台州、温州、杭州四城，组织台风、强降雨、潮位、河网、城市空间和历史事件的证据，支持实时数据分析、情景预演和经过人工复核的决策建议。四城共用数据契约与工作台；地形、排水、潮位边界和模型参数需要分别校准。
 
-[现有公开站（浙江版待部署）](https://tenetjustin.github.io/cityos-flood/) · [查看历史五城原型](docs/LEGACY_FIVE_CITY_README.md)
+[打开 CityOS 浙江工作台](https://tenetjustin.github.io/cityos-flood/) · [查看历史五城原型](docs/LEGACY_FIVE_CITY_README.md)
 
 ## 当前交付
 
