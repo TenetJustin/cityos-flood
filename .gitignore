@@ -1,6 +1,8 @@
 # --- Node ---
 node_modules/
 frontend/dist/
+frontend/public/data/observations.json
+frontend/public/data/zhejiang-observations.json
 npm-debug.log*
 
 # --- Python ---
