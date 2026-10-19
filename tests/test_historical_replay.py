@@ -539,6 +539,41 @@ class HistoricalReplayFailClosedTest(unittest.TestCase):
         self.assertIn("forecast_missing_fields", _codes(result))
         self.assertIn("input_record_ids", result["rejections"][0]["detail"])
 
+    def test_non_string_extra_keys_are_rejected_without_raising(self):
+        forecast = _forecast("f1")
+        forecast[1] = "non-string key"
+        forecast[("nested", "key")] = "non-string key"
+        result = _evaluate([_input_obs(), _record("obs-21")], [forecast])
+        self.assertEqual(result["status"], "rejected")
+        self.assertIn("forecast_unexpected_fields", _codes(result))
+        details = " ".join(item["detail"] for item in result["rejections"])
+        self.assertIn("字段名必须是字符串", details)
+        self.assertIsNone(result["metrics"])
+
+        single = _forecast("f1")
+        single[7] = None
+        result = _evaluate([_input_obs(), _record("obs-21")], [single])
+        self.assertEqual(result["status"], "rejected")
+        self.assertIn("forecast_unexpected_fields", _codes(result))
+
+    def test_mixed_model_versions_are_rejected(self):
+        result = _evaluate(
+            [
+                _input_obs(),
+                _record("obs-21"),
+                _record("obs-22", observed_at=_at(22), available_at=_at(22, 5)),
+            ],
+            [
+                _forecast("f1", valid_at=_at(21), model_version="flood-v1"),
+                _forecast("f2", valid_at=_at(22), model_version="flood-v2"),
+            ],
+        )
+        self.assertEqual(result["status"], "rejected")
+        self.assertIn("multiple_model_versions", _codes(result))
+        self.assertEqual(result["model_versions"], ["flood-v1", "flood-v2"])
+        self.assertIsNone(result["metrics"])
+        self.assertEqual(result["matched_pairs"], [])
+
     def test_unit_inconsistency_is_rejected(self):
         invalid_unit = _evaluate(
             [_input_obs(), _record("obs-21")],

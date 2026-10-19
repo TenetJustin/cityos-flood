@@ -26,8 +26,11 @@ Contract highlights
   classes may stay in the manifest but can never enter the metrics.
 * Rejections are fail-closed and order-independent: late issue, non-future
   valid time, duplicate keys, leakage, unit inconsistencies, non-finite values,
-  and attempts to nominate a non-observation record as truth all yield
-  ``status="rejected"`` with an explicit ``rejections`` list.
+  non-string field names, mixed model versions, and attempts to nominate a
+  non-observation record as truth all yield ``status="rejected"`` with an
+  explicit ``rejections`` list.
+* A single replay may contain only one distinct ``model_version``.  Mixing
+  versions is rejected rather than silently ranking or merging them.
 
 Optional ``truth_record_id``
 ----------------------------
@@ -346,6 +349,19 @@ def evaluate_replay(
                 "forecast_id_invalid", "forecast_id 必须是非空字符串"
             ))
 
+        non_string_fields = sorted(
+            (key for key in entry if not isinstance(key, str)), key=repr
+        )
+        if non_string_fields:
+            rejections.append(_rejection(
+                "forecast_unexpected_fields",
+                "字段名必须是字符串: "
+                + ", ".join(repr(key) for key in non_string_fields),
+                forecast_id=forecast_id,
+            ))
+            lineage_incomplete = True
+            continue
+
         missing = sorted(FORECAST_REQUIRED_FIELDS - set(entry))
         unexpected = sorted(
             set(entry) - FORECAST_REQUIRED_FIELDS - FORECAST_OPTIONAL_FIELDS
@@ -571,6 +587,13 @@ def evaluate_replay(
             "model_version": version,
             "truth_record_id": truth_record_id,
         })
+
+    if len(model_versions) > 1:
+        rejections.append(_rejection(
+            "multiple_model_versions",
+            "一次回测只允许一个 model_version，收到: "
+            + ", ".join(sorted(model_versions)),
+        ))
 
     input_lineage_verified = (
         bool(forecast_entries)
