@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """CITY OS · 深圳内涝预测 v3 — FastAPI backend."""
 import math
+import hmac
+import os
+import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated, Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -47,6 +51,9 @@ from .data_paths import MissingResearchDataError, require_external, research_dat
 from .realworld_response import InvalidResponseDataError
 from .event_evidence import InvalidEventEvidenceError
 from .evidence_contract import InvalidEventManifestError
+from .realtime_ingestion import poll_provider
+from .realtime_store import ObservationConflict, ObservationLimit, load_snapshot, save_records
+from .data_paths import EXTERNAL_DATA
 
 
 _SCENARIO_OVERRIDE_FIELDS = frozenset({
@@ -87,6 +94,29 @@ class ScenarioRequest(BaseModel):
     surge_peak_offset_h: float = Field(20.0, ge=0.0, le=167.0)
     surge_duration_h: float = Field(12.0, gt=0.0, le=168.0)
     rain_tide_peak_offset_h: Optional[float] = Field(None, ge=-72.0, le=72.0)
+
+
+class RealtimeIntakeRequest(BaseModel):
+    """Provider-side observations; the server stamps actual receipt time."""
+
+    model_config = ConfigDict(extra="forbid")
+    provider_id: str = Field(min_length=1, max_length=128)
+    records: list[dict] = Field(min_length=1, max_length=500)
+
+
+class _SubmittedProvider:
+    def __init__(self, provider_id: str, records: list[dict]):
+        self.provider_id = provider_id
+        self.records = records
+
+    def fetch(self, *, since, until):
+        return self.records
+
+
+def _realtime_store_path() -> Path:
+    configured = os.environ.get("CITYOS_EXTERNAL_DATA_DIR")
+    root = Path(configured).expanduser().resolve() if configured else EXTERNAL_DATA
+    return root / "realtime" / "observations.sqlite3"
 
 
 class DispatchRequest(BaseModel):
@@ -444,6 +474,68 @@ def api_realtime_sources(city_id: Optional[str] = None,
         return source_catalog(city_id=city_id, phenomenon=phenomenon)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/realtime/snapshot")
+def api_realtime_snapshot():
+    """Read-only descriptive view of contributed records, not a warning feed."""
+    try:
+        return load_snapshot(_realtime_store_path())
+    except (ObservationLimit, sqlite3.DatabaseError, OSError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="实时研究数据暂不可读") from exc
+
+
+@app.post("/api/realtime/intake")
+async def api_realtime_intake(payload: RealtimeIntakeRequest, request: Request):
+    """Token-protected provider push; never makes data a validated model input."""
+    configured = os.environ.get("CITYOS_REALTIME_INGEST_TOKEN")
+    if not configured or not os.environ.get("CITYOS_EXTERNAL_DATA_DIR"):
+        raise HTTPException(status_code=503, detail="接入未配置")
+    supplied = request.headers.get("X-CityOS-Intake-Token", "")
+    if not hmac.compare_digest(supplied, configured):
+        raise HTTPException(status_code=401, detail="接入令牌无效")
+    received = datetime.now(timezone.utc)
+    candidates = []
+    for raw in payload.records:
+        candidate = dict(raw)
+        flags = candidate.get("quality_flags")
+        if isinstance(flags, list) and "source_not_independently_verified" not in flags:
+            candidate["quality_flags"] = [*flags, "source_not_independently_verified"]
+        candidates.append(candidate)
+    processed = datetime.now(timezone.utc)
+    result = poll_provider(
+        _SubmittedProvider(payload.provider_id, candidates),
+        since=None,
+        until=processed,
+        received_at=received,
+        processed_at=processed,
+    )
+    if result["status"] in {"rejected", "unavailable"}:
+        raise HTTPException(status_code=422, detail={
+            "status": result["status"],
+            "rejected_counts": result["rejected_counts"],
+        })
+    try:
+        stored = save_records(
+            _realtime_store_path(),
+            result["accepted_records"],
+        )
+    except ObservationConflict as exc:
+        raise HTTPException(status_code=409, detail="观测 ID 与已有内容冲突") from exc
+    except (sqlite3.DatabaseError, OSError) as exc:
+        raise HTTPException(status_code=503, detail="接入存储暂不可用") from exc
+    return {
+        "status": result["status"],
+        "intake_label": "contributed_unverified",
+        "accepted_count": result["accepted_count"],
+        "rejected_count": result["rejected_count"],
+        "rejected_counts": result["rejected_counts"],
+        **stored,
+        "forecast_input_ready": False,
+        "model_assimilation_ready": False,
+        "public_warning_ready": False,
+        "automatic_dispatch_ready": False,
+    }
 
 
 def _json_arrays(value):

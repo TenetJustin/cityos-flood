@@ -4,6 +4,8 @@
 
 **[查看五城总体架构图：数据证据 → 城市模型 → 真实反应 → 区域统筹 → 受控 RSI](docs/SOUTHEAST_ARCHITECTURE.md)**
 
+**[五城研究网站交付说明](docs/WEBSITE_DELIVERY.md)**：默认首页、带令牌的观测接入、描述性分析、启动与真实性边界。
+
 共享事件契约见 [五城共用数据与事件接口](docs/FIVE_CITY_EVENT_CONTRACT.md)；首个候选端到端
 样例及其缺口见 [深圳 2023 年“9·7”极端特大暴雨](docs/events/2023-09-07_SHENZHEN_EVIDENCE.md)。
 
@@ -20,6 +22,7 @@
 - `python -m backend.app.evidence_audit` 同时检查五城事件包结构、证据类别与缺失覆盖；检查通过只代表文件符合契约。
 - `docs/FIVE_CITY_SOURCE_EVENT_REGISTER.md` 登记五城官方来源、非台风在内的事件候选、许可/获取门槛和回测缺口；登记不代表数据已经取得。
 - `GET /api/realtime/sources` 只读返回五城实时数据候选、访问/许可/字段映射缺口和适配器状态；所有候选当前均未取得模型输入、同化、公众预警或自动调度资格。
+- `POST /api/realtime/intake` 在配置外部数据目录及令牌后接收并持久化外部观测；`GET /api/realtime/snapshot` 为网站提供描述性快照。提交来源一律标为未独立核验，不能直接进入模型或预警。
 - 兼容接口 `POST /api/dispatch` 仅将研究情景建议保存为本地记录；不调用 Webhook 或任何公众告警通道，即使环境变量 `ALERT_WEBHOOK` 已设置也不会外发。建议不是操作指令，必须由主管部门核验。
 - 居民行为与应急响应中的一部分目前由规则和假设产生；真实响应观测的接入与校验仍是后续工作。
 - WAM 提供受约束的方案建议与人工批准记录；自动误差诊断、跨事件回测和受控 RSI 更新尚未实现。

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import ResearchHome from './components/ResearchHome.jsx'
 import OverviewPage from './components/OverviewPage.jsx'
 import WorldModelPage from './components/WorldModelPage.jsx'
 import OptimizationPage from './components/OptimizationPage.jsx'
@@ -30,16 +31,20 @@ function useClock() {
 /* ============ 导航结构 ============ */
 const NAV = [
   {
-    section: '指挥',
+    section: '五城研究',
+    items: [{ id: 'research', icon: '◉', label: '数据与分析', desc: '五城观测 · 来源审计 · 缺口' }],
+  },
+  {
+    section: '深圳实验模块',
     items: [
-      { id: 'overview', icon: '◎', label: '态势总览', desc: '四灾种实时 · 3D 城市 · 预测曲线' },
+      { id: 'overview', icon: '◎', label: '旧版态势实验', desc: '含模型推断、预报和回退数据' },
     ],
   },
   {
-    section: '世界模型',
+    section: '推演实验',
     items: [
       { id: 'world', icon: '◈', label: '推演与反事实', desc: '空间耦合 · 可达性 · 同化' },
-      { id: 'wam', icon: '⬢', label: '自主优化 WAM', desc: 'CEM 安全决策闭环' },
+      { id: 'wam', icon: '⬢', label: '方案建议 WAM', desc: '研究建议，不能自动调度' },
       { id: 'human-impact', icon: '🧍', label: '居民影响', desc: '灾害→人群→行为→级联→恢复' },
       { id: 'swe', icon: '🌊', label: 'SWE 物理引擎', desc: 'WebGPU 浅水方程 · 福田三角网格' },
     ],
@@ -60,7 +65,7 @@ const NAV = [
     ],
   },
   {
-    section: '水务调度',
+    section: '水务实验',
     items: [
       { id: 'reservoir', icon: '🏞️', label: '水库与山洪', desc: '蓄洪余量 · 预泄 · 沟道预警' },
     ],
@@ -68,9 +73,10 @@ const NAV = [
 ]
 
 const PAGE_TITLES = {
-  overview: { title: '态势总览', sub: '四灾种实时状态 · Open-Meteo 预报 + 守恒模型 + ML' },
+  research: { title: '五城数据与分析', sub: '观测证据 · 来源可用性 · 数据缺口' },
+  overview: { title: '旧版态势实验', sub: '第三方预报、模型推断与可能的回退数据；并非核验实况' },
   world: { title: '世界模型推演', sub: '空间耦合 · 可达性 · 反事实 · 数据同化' },
-  wam: { title: '自主优化 WAM', sub: 'CEM 安全决策闭环 · 建议式输出（不下发 SCADA）' },
+  wam: { title: '方案建议 WAM', sub: '实验性建议输出；未经人工批准不改变模型或设施状态' },
   knowledge: { title: '沉淀知识库', sub: '真实事件案例 · 城安助手 RAG 问答 · 城市底座' },
   typhoon: { title: '台风灾害', sub: '历史路径库 · 多灾种链式预测 · 3D 路径叠加' },
   surge: { title: '风暴潮灾害', sub: '潮位站统计 · 四大事件波浪 · 历史档案' },
@@ -82,7 +88,7 @@ const PAGE_TITLES = {
 }
 
 export default function App() {
-  const [page, setPage] = useState('overview')
+  const [page, setPage] = useState('research')
   const [collapsed, setCollapsed] = useState(false)
   const [theme, setTheme] = useState(() => localStorage.getItem('cityos-theme') || 'dark')
   const [predict, setPredict] = useState(null)
@@ -95,16 +101,15 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
+    if (page === 'research') return
     getPredict(3).then(setPredict).catch(() => setPredict(null))
     fetch('/api/live').then(r => r.json()).then(d => setLiveStatus(d)).catch(() => setLiveStatus(null))
-  }, [])
+  }, [page])
 
   const themeApi = useMemo(() => ({
     theme,
     toggle: () => setTheme(t => t === 'dark' ? 'light' : 'dark'),
   }), [theme])
-
-  const isLive = String(liveStatus?.data_source || '').includes('realtime')
 
   return (
     <ThemeCtx.Provider value={themeApi}>
@@ -118,15 +123,12 @@ export default function App() {
             <span className="brand-mark">C</span>
             <div className="brand-text">
               <b>CITY OS</b>
-              <span>深圳全自然灾害指挥中心 v5</span>
+              <span>东南地区城市内涝韧性研究</span>
             </div>
           </div>
           <div className="topbar-live">
-            <span className={`live-dot ${isLive ? '' : 'off'}`} />
-            {isLive ? '实时数据在线' : '回退样本'}
-            {liveStatus?.typhoon_now && (
-              <span className="chip warn" style={{ marginLeft: 6 }}>🌀 {liveStatus.typhoon_now.name}</span>
-            )}
+            <span className="live-dot off" />
+            非公众预警
           </div>
           <div className="topbar-clock">
             <div style={{ textAlign: 'right' }}>
@@ -173,6 +175,8 @@ export default function App() {
           </div>
           <div className="page-enter" key={page}>
             <ErrorBoundary fallback={<div className="err-box">模块加载失败</div>}>
+              {page !== 'research' && <div className="research-error" style={{ marginBottom: 16 }}>深圳实验模块：包含模型推断、模拟情景及可能的回退数据，不代表五城真实观测或可执行调度。</div>}
+              {page === 'research' && <ResearchHome />}
               {page === 'overview' && <OverviewPage predictData={predict} />}
               {page === 'world' && <WorldModelPage predictData={predict} />}
               {page === 'wam' && <OptimizationPage predictData={predict} />}

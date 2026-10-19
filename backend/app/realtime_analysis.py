@@ -22,6 +22,7 @@ from .realtime_ingestion import (
     CANONICAL_OPTIONAL_FIELDS,
     CANONICAL_REQUIRED_FIELDS,
     CITY_ORDER,
+    canonical_record_id,
     InvalidFreshnessConfig,
     PHENOMENON_ORDER,
     empty_rejected_counts,
@@ -233,6 +234,24 @@ def _normalise_record(
     record["_content_fingerprint"] = record_content_fingerprint(
         _record_payload(record)
     )
+    if quality_code is not None:
+        return record, quality_code
+    expected_id = canonical_record_id(
+        provider_id=record["provider_id"],
+        provider_record_id=record["provider_record_id"],
+        provider_record_version=record["provider_record_version"],
+        city_id=city_id,
+        phenomenon=phenomenon,
+        station_id=record["station_id"],
+        observed_at=observed_at,
+    )
+    if record_id != expected_id:
+        return None, "invalid_record"
+    if (
+        "content_fingerprint" in raw
+        and raw["content_fingerprint"] != record["_content_fingerprint"]
+    ):
+        return None, "invalid_record"
     return record, quality_code
 
 
