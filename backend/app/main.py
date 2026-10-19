@@ -435,6 +435,17 @@ def api_region_event_manifest(city_id: str, event_id: str):
     return load_manifest(city_id, event_id)
 
 
+@app.get("/api/realtime/sources")
+def api_realtime_sources(city_id: Optional[str] = None,
+                         phenomenon: Optional[str] = None):
+    """List audited source candidates without claiming that a live feed exists."""
+    from .realtime_sources import source_catalog
+    try:
+        return source_catalog(city_id=city_id, phenomenon=phenomenon)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 def _json_arrays(value):
     """Recursively convert NumPy results into API-safe JSON values."""
     if hasattr(value, "tolist"):
