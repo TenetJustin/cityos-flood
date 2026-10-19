@@ -37,7 +37,11 @@ export default function ResearchHome() {
       setLoading(false)
     }
   }, [])
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => {
+    refresh()
+    const timer = setInterval(refresh, 60_000)
+    return () => clearInterval(timer)
+  }, [refresh])
   const city = cities?.cities?.find(item => item.id === selected)
   const citySources = sources?.sources?.filter(item => item.city_id === selected) || []
   const summaries = useMemo(() => snapshot?.summaries?.filter(item => item.city_id === selected) || [], [snapshot, selected])
@@ -89,7 +93,7 @@ export default function ResearchHome() {
             const item = byPhenomenon[key]
             return <div className="research-observation" key={key}>
               <div><span>{label}</span><small>{item ? `${item.station_count} 站点 · ${item.record_count} 记录` : '尚无可用观测'}</small></div>
-              <div className="research-observation-value"><b>{item ? displayValue(item) : '缺失'}</b><small>{item ? `观测 ${formatDate(item.latest_observed_at)}` : '不以零值补齐'}</small></div>
+              <div className="research-observation-value"><b>{item ? displayValue(item) : '缺失'}</b><small>{item ? `观测 ${formatDate(item.latest_observed_at)} · 可用 ${formatDate(item.latest_available_at)}` : '不以零值补齐'}</small></div>
             </div>
           })}
         </div>
@@ -130,6 +134,6 @@ export default function ResearchHome() {
         <span>历史记录：已定位</span><span>独立观测真值：缺失</span><span>预报原始版本：缺失</span><span>居民行为样本：未收集</span>
       </div>
     </section>
-    <footer className="research-footer">研究数据时区 Asia/Shanghai (UTC+08:00) · 视图时间 {formatDate(snapshot?.as_of)} · 数据类别：{snapshot?.intake_label === 'contributed_unverified' ? '外部提交，未独立核验' : '未接入'}</footer>
+    <footer className="research-footer">每 60 秒自动刷新 · 研究数据时区 Asia/Shanghai (UTC+08:00) · 视图时间 {formatDate(snapshot?.as_of)} · 数据类别：{snapshot?.intake_label === 'contributed_unverified' ? '外部提交，未独立核验' : '未接入'}</footer>
   </div>
 }

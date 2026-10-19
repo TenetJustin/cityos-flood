@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import UploadFile
 
@@ -1965,3 +1966,10 @@ def api_knowledge_status():
     """城安助手智能服务状态（LLM 连接 / 模式）。"""
     from . import knowledge
     return knowledge.llm_status()
+
+
+# A built frontend can be served by the same process as /api. Keep the mount
+# last so it cannot intercept any existing API or documentation route.
+_FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if _FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIST, html=True), name="website")

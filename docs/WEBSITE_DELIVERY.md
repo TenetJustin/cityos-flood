@@ -15,7 +15,7 @@
 
 调用方将令牌放入 `X-CityOS-Intake-Token` 请求头，发送 JSON `{ "provider_id": "<稳定的提供方 ID>", "records": [<观测候选记录>] }`。单批 1–500 条。候选记录只能包含 `backend/app/realtime_ingestion.py` 的 `CANDIDATE_FIELDS`；城市、现象、单位、时区、坐标、高程基准、质量标记和时间顺序均按该模块校验。提供方应使用稳定的 `provider_record_id` 与 `provider_record_version`，不得把事后订正伪装成原版。返回 `accepted_count`、`rejected_count`、`inserted_count`、`repeated_count` 和固定为 `false` 的预测/同化/预警/调度能力标记；同 ID 异内容返回 HTTP 409。重复提交同一内容只保留最早接收版本。
 
-网页与接口本地开发地址分别为 `http://127.0.0.1:5173/` 和 `http://127.0.0.1:8000/api/realtime/snapshot`。生产环境应由同一 HTTPS 域名反向代理 `/api`，保护令牌和外部数据目录；不得直接公开开发服务器。部署前还要落实身份认证、访问控制、日志保留、备份、速率/请求体限制及来源数据再分发许可。当前代码不构成已上线服务。
+开发地址分别为 `http://127.0.0.1:5173/` 和 `http://127.0.0.1:8000/api/realtime/snapshot`。执行 `cd frontend && npm ci && npm run build` 后，后端启动时会检测 `frontend/dist` 并在同一进程的 `/` 提供静态网站，`/api` 仍由 FastAPI 处理。正式托管仍需 HTTPS 反向代理，保护令牌和外部数据目录；不得直接公开开发服务器。部署前还要落实身份认证、访问控制、日志保留、备份、速率/请求体限制及来源数据再分发许可。当前代码不构成已上线服务。
 
 ## 可验收与未完成边界
 
