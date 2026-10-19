@@ -81,7 +81,7 @@ backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port
 
 这只是本地研究运行方式，不是生产部署配置。可选研究数据默认位于 `backend/data/external/`；也可用 `CITYOS_EXTERNAL_DATA_DIR` 指向获授权、可写的外部目录。实时写入还需设置 `CITYOS_REALTIME_INGEST_TOKEN`；未设置时写接口关闭。**不要将令牌、受限原始数据或未审查的模型文件提交到仓库。** 具体输入契约、存储和部署要求见[网站交付说明](docs/WEBSITE_DELIVERY.md)。
 
-GitHub Pages 从 `main` 的前端变更自动构建，基路径为 `/cityos-flood/`，深链接通过 `404.html` 回退到前端路由。它不运行 FastAPI；若要安全地公开实时描述性分析，需要另行部署并审计后端、身份、许可与数据保护，不能只修改静态站配置。
+GitHub Pages 从 `main` 的前端变更自动构建，基路径为 `/cityos-flood/`；已知页面生成独立静态入口，未知路径由 `404.html` 回退到前端路由。它不运行 FastAPI；若要安全地公开实时描述性分析，需要另行部署并审计后端、身份、许可与数据保护，不能只修改静态站配置。
 
 ## 验证
 

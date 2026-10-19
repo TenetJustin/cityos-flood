@@ -11,7 +11,7 @@
 | GitHub Pages 公开站 | 2026-10-19 核对的五城与来源静态目录、历史事件证据、缺口与安全边界 | FastAPI、持续实时接入、认证复核、模型运行、公众预警、自动调度 |
 | 本地研究环境 | 连接本地 FastAPI 时可读取 `GET /api/realtime/snapshot` 的描述性统计状态 | 未经独立核验的资料不能自动成为预测输入；无生产预警资格 |
 
-公开站地址：`https://tenetjustin.github.io/cityos-flood/`。`main` 上的 `frontend/**` 变更会触发 `.github/workflows/pages.yml`，使用 `/cityos-flood/` 基路径构建，并复制 `index.html` 为 `404.html` 支持深链接。公开站不存放凭据或受限原始数据。目录快照日期不是观测时间、可获得时间或页面刷新时间。
+公开站地址：`https://tenetjustin.github.io/cityos-flood/`。`main` 上的 `frontend/**` 变更会触发 `.github/workflows/pages.yml`，使用 `/cityos-flood/` 基路径构建，为已知路由生成静态入口，并复制 `index.html` 为 `404.html` 处理未知路径。公开站不存放凭据或受限原始数据。目录快照日期不是观测时间、可获得时间或页面刷新时间。
 
 网站已具备一个可运行但**未配置实际供应商**的实时接入边界：外部授权数据提供方通过 `POST /api/realtime/intake` 提交符合五城契约的观测，服务端记录实际 `received_at`、`processed_at`、`available_at`，持久化到外部目录 SQLite，再由 `GET /api/realtime/snapshot` 做只读描述性统计。所有提交都加 `source_not_independently_verified`；接入不等于源真实性、许可和城市覆盖通过审核。
 
