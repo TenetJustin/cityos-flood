@@ -10,6 +10,13 @@ backend/.venv/bin/python -m backend.app.evidence_audit > evidence-audit.json
 
 输出按资产列出文件缺失、字段缺失、关键字段空值、重复键、时间格式/时区、反应记录的发布时刻早于发生时刻等问题。五城的 `responses.csv` 和 `event_evidence.csv` 均纳入检查；后者另查现象、单位、数值和高程基准的基本规则。`structural_checks_passed` **仅表示这些结构规则通过**，不表示来源真实、观测准确、事件覆盖充分或可用于预警。审计不会下载、改写或补全数据；默认读取仓库内深圳样本和 `CITYOS_EXTERNAL_DATA_DIR/cities/<city_id>/` 下的可选文件。详细列名见 [区域研究路线](REGIONAL_RESEARCH_ROADMAP.md)。
 
+审计还读取 `cities/<city_id>/events/<event_id>/manifest.json`，在输出的
+`event_manifests` 中列出五类证据数量、各现象缺失数、已标记质控的观测数与待复核许可数；
+`manifest_coverage_by_city` 只计事件包及结构检查通过数。深圳 2023 年“9·7”候选事件即使
+尚未有 manifest，也会以 `file_missing` 显示。任何结构检查通过的事件仍固定返回
+`ground_truth_ready=false`、`forecast_input_ready=false` 和
+`operational_warning_ready=false`，需另外完成原件和独立事件审查。
+
 ## 跨城候选来源（尚未接入五城模型）
 
 | 要素 | 官方候选来源 | 可支持的用途 | 不能替代的内容 |

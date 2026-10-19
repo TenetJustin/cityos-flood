@@ -219,24 +219,61 @@ class AlertLogContractTest(unittest.TestCase):
             with patch.object(dispatch, "ALERT_LOG", path), patch.object(
                 dispatch, "ALERT_LOG_MAX_BYTES", 1
             ), patch.dict(os.environ, {}, clear=True):
-                dispatch.push_alert({"sequence": 1})
-                dispatch.push_alert({"sequence": 2})
+                dispatch.record_research_advisory({"sequence": 1})
+                dispatch.record_research_advisory({"sequence": 2})
                 self.assertEqual(
-                    [item["sequence"] for item in dispatch.get_pushed_alerts(2)],
+                    [item["sequence"] for item in dispatch.get_research_advisories(2)],
                     [1, 2],
                 )
                 with self.assertRaises(ValueError):
-                    dispatch.get_pushed_alerts(0)
+                    dispatch.get_research_advisories(0)
                 with self.assertRaises(ValueError):
-                    dispatch.get_pushed_alerts(201)
+                    dispatch.get_research_advisories(201)
 
                 with open(path, "a", encoding="utf-8") as handle:
                     for index in range(3, 30):
                         handle.write(json.dumps({"sequence": index}) + "\n")
                 self.assertEqual(
-                    [item["sequence"] for item in dispatch.get_pushed_alerts(3)],
+                    [item["sequence"] for item in dispatch.get_research_advisories(3)],
                     [27, 28, 29],
                 )
+
+    def test_research_advisory_never_calls_configured_webhook(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "advisories.log")
+            with patch.object(dispatch, "ALERT_LOG", path), patch.dict(
+                os.environ, {"ALERT_WEBHOOK": "https://example.invalid/public-alert"}
+            ), patch("urllib.request.urlopen") as send:
+                status = dispatch.record_research_advisory({"sequence": 1})
+            self.assertEqual(status, "recorded_research_only")
+            send.assert_not_called()
+
+    def test_scenario_alerts_have_no_external_delivery_channel(self):
+        alerts = dispatch.generate_alerts([{
+            "id": "futian", "name": "福田", "peak_level": 3,
+            "peak_prob": 0.7, "peak_index": 0,
+        }], ["2026-10-19T10:00:00+08:00"])
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["channels"], ["研究界面"])
+        self.assertFalse(alerts[0]["external_delivery_ready"])
+        self.assertEqual(alerts[0]["action_status"], "scenario_only")
+        self.assertNotIn("开启泵站至", " ".join(alerts[0]["actions"]))
+        self.assertIn("现场核验并批准", " ".join(alerts[0]["actions"]))
+
+    def test_legacy_dispatch_route_reports_local_recording_only(self):
+        cached = {"alerts": [{"district": "福田", "message": "研究情景"},
+                             {"district": "罗湖", "message": "研究情景"}]}
+        with patch("backend.app.main.simulate.get_cached", return_value=cached), patch(
+            "backend.app.main.dispatch.record_research_advisory",
+            side_effect=["recorded_research_only", "record_failed"],
+        ) as record:
+            result = main.dispatch_action(main.DispatchRequest(simulation_run_id="test-run"))
+        self.assertEqual(record.call_count, 2)
+        self.assertEqual(result["recorded"], 1)
+        self.assertEqual(result["record_failed"], 1)
+        self.assertFalse(result["external_delivery"])
+        self.assertFalse(result["public_warning_ready"])
+        self.assertFalse(result["automatic_dispatch_ready"])
 
 
 if __name__ == "__main__":

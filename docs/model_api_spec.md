@@ -186,7 +186,7 @@ PNG 同时支持 `HEAD` 预检。客户端应校验 `X-Forecast-Run-Id`、`X-Tem
 - `GET /api/benchmark`：返回候选模型和验证协议，不在 GET 请求中训练；
 - `POST /api/data/upload`：必须使用 `multipart/form-data` 的 `file` 字段；服务端分块读取且最多读取 20MB+1 字节，超过 20MB 返回 413，缺文件、表单解析或 CSV Schema/QC 失败返回 422。通过后只做内容寻址落盘，不自动训练。
 - `POST /api/forecast/manual`：严格 JSON 请求体仅接受 `district_id`、1–240 个 `rainfall`（每项 0–500 mm/h）和可选 `tide_raise`（0–5m）；缺字段、未知区、越界值或额外字段返回 422。
-- `GET /api/alerts?limit=50`：`limit` 范围 1–200；日志采用有界流式读取并在达到大小上限后轮转。
+- `GET /api/alerts?limit=50`：`limit` 范围 1–200；仅返回本地研究建议记录，日志采用有界流式读取并在达到大小上限后轮转。
 
 ## 7. 错误语义
 

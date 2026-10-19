@@ -189,13 +189,13 @@ export async function postDispatch(payload = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!r.ok) throw new Error('预警下发失败')
+  if (!r.ok) throw new Error('保存研究建议失败')
   return r.json()
 }
 
 export async function getAlerts(limit = 50) {
   const r = await fetch(`/api/alerts?limit=${limit}`)
-  if (!r.ok) throw new Error('获取预警记录失败')
+  if (!r.ok) throw new Error('获取研究建议记录失败')
   return r.json()
 }
 

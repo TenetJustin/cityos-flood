@@ -15,6 +15,7 @@ from typing import Callable
 from pydantic import ValidationError
 
 from .data_paths import BACKEND_DATA, EXTERNAL_DATA
+from .evidence_contract import EVIDENCE_CLASSES, EventManifest
 from .event_evidence import CSV_FIELDS as EVENT_FIELDS, EventEvidence
 from .region import CITIES
 
@@ -40,6 +41,9 @@ ASSETS = (
 RESPONSE_REQUIRED = ("city_id", "event_id", "actor_type", "action_type",
                      "action_status", "observed_at", "available_at", "area",
                      "source_name", "source_reference", "evidence_level")
+
+# Explicit candidates are reported even before their first manifest is acquired.
+CANDIDATE_EVENTS = (("shenzhen", "2023-09-07-shenzhen-extreme-rain"),)
 
 
 def _parse_time(value: str, fmt: str | None = None) -> datetime:
@@ -140,6 +144,94 @@ def audit_csv(path: Path, *, required: list[str] | tuple[str, ...],
     }
 
 
+def audit_event_manifest(path: Path, *, city_id: str, event_id: str) -> dict:
+    """Inspect a v1 event package without certifying its sources or measurements."""
+    result = {
+        "path": str(path),
+        "status": "missing",
+        "issues": ["file_missing"],
+        "ground_truth_ready": False,
+        "forecast_input_ready": False,
+        "operational_warning_ready": False,
+    }
+    if not path.is_file():
+        return result
+    if path.is_symlink() or path.parent.is_symlink():
+        return {**result, "status": "structural_issues", "issues": ["symlink_not_audited"]}
+    try:
+        manifest = EventManifest.model_validate_json(path.read_text(encoding="utf-8"))
+    except (ValidationError, OSError, UnicodeError) as exc:
+        issue = "invalid_manifest" if isinstance(exc, ValidationError) else "unreadable_manifest"
+        return {**result, "status": "structural_issues", "issues": [issue]}
+    if manifest.city_id != city_id or manifest.event_id != event_id:
+        return {**result, "status": "structural_issues", "issues": ["path_identity_mismatch"]}
+
+    classes = Counter(record.evidence_class for record in manifest.records)
+    phenomena = Counter(record.phenomenon for record in manifest.records)
+    missing = Counter(record.phenomenon for record in manifest.records
+                      if record.evidence_class == "missing")
+    pending_license = sum(record.source.license_id == "terms-review-required"
+                          or record.source.redistribution_allowed is None
+                          for record in manifest.records)
+    qc_observations = sum(record.evidence_class == "observation"
+                          and "quality_controlled" in record.quality_flags
+                          and "suspect" not in record.quality_flags
+                          and "rejected" not in record.quality_flags
+                          for record in manifest.records)
+    return {
+        **result,
+        "status": "structural_checks_passed",
+        "issues": [],
+        "event_status": manifest.status,
+        "record_count": len(manifest.records),
+        "evidence_class_counts": {kind: classes[kind] for kind in EVIDENCE_CLASSES},
+        "phenomenon_counts": dict(sorted(phenomena.items())),
+        "missing_by_phenomenon": dict(sorted(missing.items())),
+        "quality_controlled_observation_count": qc_observations,
+        "license_review_record_count": pending_license,
+        "verification_status": "metadata_validated_sources_not_independently_verified",
+    }
+
+
+def _event_manifest_inventory(external_root: Path) -> tuple[list[dict], dict]:
+    """List direct city event packages plus named candidates that are still absent."""
+    discovered = set(CANDIDATE_EVENTS)
+    for city in CITIES:
+        city_id = city["id"]
+        events_dir = external_root / "cities" / city_id / "events"
+        if not events_dir.is_dir() or events_dir.is_symlink():
+            continue
+        for event_dir in events_dir.iterdir():
+            if event_dir.is_dir() and not event_dir.is_symlink():
+                discovered.add((city_id, event_dir.name))
+
+    items = []
+    for city_id, event_id in sorted(discovered):
+        relative_path = f"cities/{city_id}/events/{event_id}/manifest.json"
+        items.append({
+            "id": f"{city_id}_{event_id}",
+            "city_id": city_id,
+            "event_id": event_id,
+            "kind": "event_manifest",
+            "root": "external",
+            "path": relative_path,
+            "audit": audit_event_manifest(external_root / relative_path,
+                                          city_id=city_id, event_id=event_id),
+        })
+    coverage = {
+        city["id"]: {
+            "listed": sum(item["city_id"] == city["id"] for item in items),
+            "structural_checks_passed": sum(
+                item["city_id"] == city["id"]
+                and item["audit"]["status"] == "structural_checks_passed"
+                for item in items
+            ),
+        }
+        for city in CITIES
+    }
+    return items, coverage
+
+
 def audit_inventory(*, bundled_root: Path = BACKEND_DATA,
                     external_root: Path = EXTERNAL_DATA) -> dict:
     assets = []
@@ -172,9 +264,12 @@ def audit_inventory(*, bundled_root: Path = BACKEND_DATA,
                                           key=("event_id", "phenomenon", "site_id", "observed_at"),
                                           time_field="observed_at", response_city=city_id,
                                           row_validator=EventEvidence.model_validate)})
+    event_manifests, manifest_coverage_by_city = _event_manifest_inventory(external_root)
     return {"assessment": "structural_only_not_independent_validation",
             "operational_warning_ready": False,
             "cities": [city["id"] for city in CITIES], "assets": assets,
+            "event_manifests": event_manifests,
+            "manifest_coverage_by_city": manifest_coverage_by_city,
             "not_checked": ["source_authenticity", "physical_plausibility",
                             "event_coverage", "sensor_calibration", "vertical_datum",
                             "license_terms", "forecast_skill", "response_ground_truth"]}

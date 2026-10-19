@@ -2,15 +2,15 @@ import { useState } from 'react'
 import { postDispatch, getAlerts, levelColor } from '../api'
 
 export default function DispatchPanel({ sim, loading }) {
-  const [pushed, setPushed] = useState(null)
+  const [recorded, setRecorded] = useState(null)
   const [history, setHistory] = useState([])
   const alerts = sim?.alerts || []
 
-  async function push() {
+  async function saveAdvisories() {
     const res = await postDispatch({
       simulation_run_id: sim.simulation_run_id,
     })
-    setPushed(res)
+    setRecorded(res)
     const a = await getAlerts()
     setHistory(a.alerts)
   }
@@ -18,8 +18,8 @@ export default function DispatchPanel({ sim, loading }) {
   return (
     <div className="card dispatch">
       <div className="card-h">
-        ACT 闭环 · 泵站调度 + 预警下发
-        <span className="hint">{alerts.length} 条待下发</span>
+        研究情景 · 处置建议草案
+        <span className="hint">{alerts.length} 条可保存</span>
       </div>
 
       {alerts.length === 0 && (
@@ -37,7 +37,7 @@ export default function DispatchPanel({ sim, loading }) {
               <span className="ai-time">{a.time}</span>
             </div>
             <div className="ai-msg">{a.message}</div>
-            <div className="ai-channels">通道：{(a.channels || []).join(' / ') || '未配置'}</div>
+            <div className="ai-channels">输出范围：{(a.channels || []).join(' / ') || '研究界面'}，不对外发送</div>
             <ul className="ai-actions">
               {(a.actions || []).map((ac, j) => (
                 <li key={j}>{ac}</li>
@@ -48,18 +48,21 @@ export default function DispatchPanel({ sim, loading }) {
       </div>
 
       {alerts.length > 0 && (
-        <button className="push-btn" disabled={loading} onClick={push}>
-          📣 一键下发预警（写入日志 / 可接 Webhook）
+        <button className="push-btn" disabled={loading} onClick={saveAdvisories}>
+          保存研究建议（仅本地记录）
         </button>
       )}
 
-      {pushed && (
-        <div className="push-ok">已下发 {pushed.pushed} 条预警（状态：{(pushed.push || []).map((p) => p.status).join('、') || '已记录'}）</div>
+      {recorded && (
+        <div className="push-ok">
+          已保存 {recorded.recorded} 条研究建议；未对外发送。
+          {recorded.record_failed > 0 ? ` ${recorded.record_failed} 条本地记录失败。` : ''}
+        </div>
       )}
 
       {history.length > 0 && (
         <div className="hist">
-          <div className="hist-h">已下发记录（最近 5 条）</div>
+          <div className="hist-h">研究建议记录（最近 5 条）</div>
           {history.slice(-5).reverse().map((h, i) => (
             <div key={i} className="hist-item">
               {h.district} · {h.severity_label} · {h.time}

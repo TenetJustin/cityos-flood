@@ -825,20 +825,30 @@ def post_simulate(config: ScenarioRequest):
 
 @app.post("/api/dispatch")
 def dispatch_action(payload: DispatchRequest):
+    """Legacy route: record scenario advisories locally, without delivery."""
     requested_run = payload.simulation_run_id
     result = simulate.get_cached(requested_run)
     if result is None:
         raise HTTPException(
             status_code=409,
-            detail="该 simulation_run_id 已不在当前进程缓存中，请重新运行情景后再下发。",
+            detail="该 simulation_run_id 已不在当前进程缓存中，请重新运行情景后再保存建议。",
         )
-    pushes = [{"district": a["district"], "status": dispatch.push_alert(a)} for a in result["alerts"]]
-    return {"simulate": result, "push": pushes, "pushed": len(pushes)}
+    records = [{"district": a["district"], "status": dispatch.record_research_advisory(a)}
+               for a in result["alerts"]]
+    return {
+        "simulate": result,
+        "records": records,
+        "recorded": sum(item["status"] == "recorded_research_only" for item in records),
+        "record_failed": sum(item["status"] == "record_failed" for item in records),
+        "external_delivery": False,
+        "public_warning_ready": False,
+        "automatic_dispatch_ready": False,
+    }
 
 
 @app.get("/api/alerts")
 def get_alerts(limit: int = Query(50, ge=1, le=200)):
-    return {"alerts": dispatch.get_pushed_alerts(limit)}
+    return {"alerts": dispatch.get_research_advisories(limit)}
 
 
 # ============ 自主优化行动 WAM（模型式安全基线，非已训练 RL）============
