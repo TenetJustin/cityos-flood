@@ -1,9 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import 'leaflet/dist/leaflet.css'
-import './theme.css'
-import './styles.css'
-import App from './App.jsx'
+import WorkbenchApp from './WorkbenchApp.jsx'
 
 // 把任何运行时错误显示到页面上，避免“一片黑”无从排查
 class ErrorBoundary extends React.Component {
@@ -51,6 +49,6 @@ window.addEventListener('unhandledrejection', (ev) => {
 const rootEl = document.getElementById('root')
 ReactDOM.createRoot(rootEl).render(
   <ErrorBoundary>
-    <App />
+    <WorkbenchApp />
   </ErrorBoundary>
 )

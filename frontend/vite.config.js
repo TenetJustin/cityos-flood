@@ -5,6 +5,7 @@ const apiTarget = process.env.CITYOS_API_TARGET || 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [react()],
+  base: process.env.VITE_BASE_PATH || '/',
   server: {
     port: 5173,
     proxy: {
@@ -26,9 +27,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          three: ['three'],
-          vendor: ['react', 'react-dom'],
-          charts: ['recharts'],
           map: ['leaflet', 'react-leaflet'],
         },
       },

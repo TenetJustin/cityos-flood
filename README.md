@@ -2,7 +2,7 @@
 
 面向**上海、宁波、福州、深圳、海口**的城市内涝韧性研究项目。我们研究台风、极端暴雨、潮位、河流与城市排水如何共同影响积水，并进一步分析居民、交通、关键设施和应急部门的影响与响应。研究事件**不限于台风**，也包括独立暴雨及其他复合致涝过程。
 
-> **项目状态：研究型网站与数据/事件基础设施可运行；五城预测模型尚未交付。** 当前模型和地图能力主要来自深圳实验原型。其余四城已有研究范围和来源登记，但没有经过独立事件验证的城市模型。此项目不是官方实况平台、公众预警系统或自动调度系统。
+> **项目状态：公开研究工作台与数据/事件基础设施可运行；五城预测模型尚未交付。** [公开网站](https://tenetjustin.github.io/cityos-flood/)部署在 GitHub Pages，为只读静态目录，不接入实时后端。当前模型能力主要来自深圳实验原型。其余四城已有研究范围和来源登记，但没有经过独立事件验证的城市模型。此项目不是官方实况平台、公众预警系统或自动调度系统。
 
 ## 研究范围与当前状态
 
@@ -33,7 +33,7 @@ flowchart LR
 
 ### 已实现的研究基础设施
 
-- **五城研究网站**：默认首页展示城市背景、观测覆盖、来源候选和明确的数据缺口；每 60 秒刷新。旧深圳页面保留为实验模块，与五城实况分开。[网站交付与部署边界](docs/WEBSITE_DELIVERY.md)
+- **五城研究工作台**：总览、城市、事件、模型、来源、复核与深圳实验区均有独立路径；地图是城市空间索引，检查器解释来源与缺口。GitHub Pages 公开版本仅展示 2026-10-19 核对的目录快照，不刷新或宣称实时实测。旧深圳代码仍在仓库，但公开站仅提供实验索引，不运行依赖后端的原型。[网站交付与部署边界](docs/WEBSITE_DELIVERY.md)
 - **事件证据契约**：按 `observation`（观测记录，仍须核验）、`historical_record`（历史记录）、`model_inference`（模型推断）、`simulation_scenario`（模拟情景）和 `missing`（缺失）分类，保存来源、许可、质量、空间/高程基准、单位与时间。事件包可由 `GET /api/region/events/{city_id}/{event_id}` 读取并做结构校验。[完整契约](docs/FIVE_CITY_EVENT_CONTRACT.md)
 - **实时观测接入边界**：可通过带令牌的 `POST /api/realtime/intake` 接收规范化记录，在外部数据目录持久化；`GET /api/realtime/snapshot` 只做计数、极值、均值、时效和缺失覆盖等**描述性分析**。提交数据一律标为“来源未独立核验”，不会自动进入预测模型。[来源注册表与晋级条件](docs/REALTIME_SOURCE_REGISTRY.md)
 - **离线历史回测评估器**：`backend/app/historical_replay.py` 对已校验事件包、当时签发的预报和合格独立观测做时间泄漏与匹配检查；缺关键证据时拒绝给出有效技巧结论。它不训练模型或更改版本。
@@ -81,12 +81,14 @@ backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port
 
 这只是本地研究运行方式，不是生产部署配置。可选研究数据默认位于 `backend/data/external/`；也可用 `CITYOS_EXTERNAL_DATA_DIR` 指向获授权、可写的外部目录。实时写入还需设置 `CITYOS_REALTIME_INGEST_TOKEN`；未设置时写接口关闭。**不要将令牌、受限原始数据或未审查的模型文件提交到仓库。** 具体输入契约、存储和部署要求见[网站交付说明](docs/WEBSITE_DELIVERY.md)。
 
+GitHub Pages 从 `main` 的前端变更自动构建，基路径为 `/cityos-flood/`，深链接通过 `404.html` 回退到前端路由。它不运行 FastAPI；若要安全地公开实时描述性分析，需要另行部署并审计后端、身份、许可与数据保护，不能只修改静态站配置。
+
 ## 验证
 
 ```bash
 backend/.venv/bin/python -m unittest discover -s tests
 backend/.venv/bin/python -m backend.app.evidence_audit
-cd frontend && npm run build
+cd frontend && npm test && npm run build
 ```
 
 测试中的假提供方只验证接入契约，不能证明实际数据源可用。证据审计只检查本地结构和已知缺口；外部人口、潮位或历史事件文件缺失时的跳过/失败，也不能解释为通过真实性验证。历史回测结果必须连同事件包、数据版本、起报时刻和模型版本复核。
