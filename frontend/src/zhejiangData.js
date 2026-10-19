@@ -8,6 +8,7 @@ export const ZHEJIANG_CITIES = [
 
 export const ZHEJIANG_SOURCES = [
   { id: 'awc', city: 'all', category: '气象观测', name: '浙江四城机场 METAR', publisher: 'NOAA Aviation Weather Center', access: '已接入公开快照', cadence: '构建时抓取；逐条检查观测时间', coverage: '机场站点气温、气压、风速；各站覆盖按实际响应', license: '公开 API；原始报文再利用条款待独立核对', url: 'https://aviationweather.gov/data/api/', note: '不代表城区雨量或内涝。' },
+  { id: 'ibtracs', city: 'all', category: '历史台风', name: 'IBTrACS 浙江邻近最佳路径', publisher: 'NOAA NCEI', access: '已接入历史快照', cadence: '手动抓取近三年索引；来源更新状态按快照展示', coverage: '四城中心 500 km 邻近路径候选；非降雨或积水事件', license: 'NOAA 开放研究数据；使用时引用数据集；其他用途条款待核对', url: 'https://www.ncei.noaa.gov/products/international-best-track-archive', note: '事后最佳路径；单条路径的最早公开可获得时间未知。' },
   { id: 'zj-rain', city: 'all', category: '降水', name: '浙江省降水量信息', publisher: '浙江省数据开放平台', access: '需注册申请', cadence: '待核验', coverage: '站点与时段待核验', license: '按平台条款核验', url: 'https://data.zjzwfw.gov.cn/jdop_front/detail/api.do?iid=14701', note: '接口申请完成后才能接入。' },
   { id: 'zj-reservoir', city: 'all', category: '水文', name: '浙江省水库水情', publisher: '浙江省数据开放平台', access: '需注册申请', cadence: '待核验', coverage: '水库水情；非城市积水', license: '按平台条款核验', url: 'https://data.zjzwfw.gov.cn/jdop_front/detail/api.do?iid=27987', note: '不能代替城区河网或积水观测。' },
   { id: 'wz-typhoon', city: 'wenzhou', category: '台风', name: '台风路径实况', publisher: '温州市数据开放平台', access: '需注册申请', cadence: '待核验', coverage: '路径与强度字段待接口核验', license: '按平台条款核验', url: 'https://data.wenzhou.gov.cn/jdop_front/detail/api.do?iid=16397', note: '目录存在不代表已获得接口数据。' },

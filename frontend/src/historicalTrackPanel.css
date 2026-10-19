@@ -1,0 +1,24 @@
+.zh-track-panel{margin-top:19px}
+.zh-track-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.zh-track-heading small{font:600 10px 'IBM Plex Mono','Noto Sans SC',monospace;letter-spacing:.13em;color:#89b2ac}
+.zh-track-heading h2{font-size:18px;letter-spacing:-.035em;margin:7px 0 0}
+.zh-track-heading>span{border:1px solid rgba(151,218,192,.25);background:rgba(151,218,192,.08);border-radius:999px;padding:5px 10px;color:#adddcf;font-size:10px;white-space:nowrap}
+.zh-track-panel>p{font-size:11px;line-height:1.75;color:#a4b9ba;margin:0 0 14px}
+.zh-track-meta{display:flex;flex-wrap:wrap;gap:9px 17px;padding:12px 0;border-top:1px solid rgba(191,236,225,.1);font-size:10px;color:#8eaaad}
+.zh-track-meta a,.zh-track-boundary a{color:#aae6d2;text-decoration:underline;text-underline-offset:3px}
+.zh-track-layout{display:grid;grid-template-columns:minmax(165px,210px) minmax(0,1fr);gap:14px}
+.zh-track-list{max-height:382px;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-right:3px}
+.zh-track-list button{display:grid;text-align:left;gap:4px;min-width:0;padding:10px 12px;border-radius:9px;border:1px solid rgba(185,230,216,.12);background:rgba(0,0,0,.09);color:#dfeee9}
+.zh-track-list button:hover,.zh-track-list button.active{border-color:rgba(145,222,191,.45);background:rgba(122,200,168,.11)}
+.zh-track-list button span,.zh-track-list button small{font-size:9px;color:#95abae;line-height:1.3}
+.zh-track-list button strong{font-size:12px;font-weight:600;overflow-wrap:anywhere}
+.zh-track-list .zh-track-more{color:#a9e3d0;display:block;text-align:center;background:none}
+.zh-track-map-shell{min-width:0;border:1px solid rgba(188,236,221,.16);border-radius:11px;overflow:hidden;background:#10232a}
+.zh-track-map{height:340px}
+.zh-track-map .leaflet-container{height:100%;width:100%;background:#142b33}
+.zh-track-caption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 14px;align-items:center;padding:12px 14px;font-size:10px;color:#93abad}
+.zh-track-caption strong{color:#e1f1eb;font-size:12px}
+.zh-track-empty{display:grid;place-items:center;min-height:140px;padding:20px;color:#a9b9ba;font-size:11px;text-align:center;line-height:1.7}
+.zh-track-panel .zh-track-boundary{border-top:1px solid rgba(191,236,225,.1);padding-top:12px;margin:14px 0 0;color:#8ba3a6}
+@media(max-width:760px){.zh-track-layout{grid-template-columns:1fr}.zh-track-list{max-height:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.zh-track-map{height:300px}}
+@media(max-width:470px){.zh-track-heading{align-items:flex-start}.zh-track-list{grid-template-columns:1fr}.zh-track-map{height:260px}}
