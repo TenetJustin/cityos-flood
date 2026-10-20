@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:pages": "vite build && node scripts/build-pages-routes.mjs",
+    "build:pages": "node scripts/write-evidence-manifest.mjs && vite build && node scripts/build-pages-routes.mjs",
+    "check:pages": "node scripts/check-pages-dist.mjs",
     "preview": "vite preview --port 4173",
     "test": "node --test tests/*.test.mjs"
   },

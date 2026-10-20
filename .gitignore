@@ -3,6 +3,7 @@ node_modules/
 frontend/dist/
 frontend/public/data/observations.json
 frontend/public/data/zhejiang-observations.json
+frontend/public/data/zhejiang-evidence-manifest.json
 npm-debug.log*
 
 # --- Python ---

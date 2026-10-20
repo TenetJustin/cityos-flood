@@ -34,6 +34,15 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: frontend/requirements-forecast.txt
+      - name: Install weather-model reader
+        continue-on-error: true
+        run: python -m pip install -r frontend/requirements-forecast.txt
       - name: Build read-only site
         working-directory: frontend
         env:
@@ -44,7 +53,22 @@ jobs:
           npm test
           node scripts/fetch-public-observations.mjs
           node scripts/fetch-zhejiang-observations.mjs
+          python scripts/fetch_zhejiang_forecast.py --allow-unavailable
           npm run build:pages
+          npm run check:pages
+      - name: Keep short-term evidence snapshots and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhejiang-evidence-${{ github.run_id }}
+          path: |
+            frontend/public/data/zhejiang-observations.json
+            frontend/public/data/zhejiang-weather-forecast.json
+            frontend/public/data/zhejiang-historical-rain-2021.json
+            frontend/public/data/zhejiang-synoptic-rain-2021.json
+            frontend/public/data/zhejiang-track-candidates.json
+            frontend/public/data/zhejiang-evidence-manifest.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static artifact

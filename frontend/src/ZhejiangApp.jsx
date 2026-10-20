@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { stationDisplayStatus } from './publicObservations.js'
-import { CITY_CHECKS, scenarioAssessment, ZHEJIANG_CITIES, ZHEJIANG_EVENTS, ZHEJIANG_SOURCES } from './zhejiangData.js'
+import { CITY_CHECKS, ZHEJIANG_CITIES, ZHEJIANG_EVENTS, ZHEJIANG_SOURCES } from './zhejiangData.js'
+import { assessZhejiangSnapshot } from './zhejiangObservations.js'
+import HistoricalTrackPanel from './HistoricalTrackPanel.jsx'
+import HistoricalRainPanel from './HistoricalRainPanel.jsx'
+import { ResidentBehaviorPanel, ScenarioStudio } from './ScenarioStudio.jsx'
+import ZhejiangForecastPanel from './ZhejiangForecastPanel.jsx'
 import './zhejiang.css'
 
 const cityById = (id) => ZHEJIANG_CITIES.find((city) => city.id === id)
@@ -18,7 +23,7 @@ function useObservations() {
     let active = true
     const load = () => fetch(`${import.meta.env.BASE_URL}data/zhejiang-observations.json`, { cache: 'no-store' })
       .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json() })
-      .then((data) => { if (active) setResult({ state: data?.state === 'ok' ? 'ok' : 'unavailable', data }) })
+      .then((data) => { if (active) { const assessment = assessZhejiangSnapshot(data); setResult({ state: assessment.valid && data.state === 'ok' ? 'ok' : 'unavailable', data: assessment.valid ? data : null, assessment }) } })
       .catch(() => { if (active) setResult({ state: 'unavailable', data: null }) })
     load()
     const timer = setInterval(load, 5 * 60_000)
@@ -34,7 +39,7 @@ function cityObservation(observations, cityId) {
 
 function cityState(observations, cityId) {
   if (observations.state === 'loading') return { label: '读取中', tone: 'muted', detail: '正在读取公开快照' }
-  if (observations.state !== 'ok') return { label: '快照不可用', tone: 'amber', detail: '公开机场接口或构建任务不可用' }
+  if (observations.state !== 'ok') return { label: '快照不可用', tone: 'amber', detail: observations.assessment?.valid === false ? '公开快照未通过字段与时间校验' : '公开机场接口或构建任务不可用' }
   const station = cityObservation(observations, cityId)
   if (!station?.latest) return { label: '无机场报文', tone: 'muted', detail: '本轮 AWC 查询没有返回本站记录' }
   if (stationDisplayStatus(station) === 'stale') return { label: '观测延迟', tone: 'amber', detail: `最近观测 ${time(station.latest.observed_at)}` }
@@ -105,7 +110,7 @@ function Workbench({ observations }) {
         {activeSection === 'decision' && <Decision city={city || cityById(selectedCity)}/>}
         {activeSection === 'events' && <Events city={city}/>}
         {activeSection === 'scenario' && <Scenario city={city || cityById(selectedCity)}/>}
-        {activeSection === 'data' && <Data city={city}/>}
+        {activeSection === 'data' && <Data city={city} observations={observations}/>}
         {!NAV.some(([id]) => id === activeSection) && <Card><p>页面不存在。</p><Link to="/workbench">返回工作台</Link></Card>}
       </main><footer className="zo-statusbar"><span><i/> {city ? `${city.name} · ${status.label}` : '浙江四城 · 来源状态分城显示'}</span><span>城市中心为示意位置 · 观测与模型结果分开标记</span><span>研究分析 / 不执行调度</span></footer></div>
     <aside className="zo-inspector"><div className="zo-inspector-head"><small>INSPECTOR / 状态</small><h2>{city ? city.name : '浙江四城'}</h2><p>{city ? city.context : '四城共享界面，分别记录来源与缺口'}</p></div><div className="zo-inspector-body"><div className="zo-inspector-row"><span>数据时效</span><Mark tone={status?.tone || 'muted'}>{status?.label || '分城查看'}</Mark></div><div className="zo-inspector-row"><span>空间位置</span><strong>城市中心示意</strong></div><div className="zo-inspector-row"><span>内涝等级</span><strong>无可验证输出</strong></div><div className="zo-inspector-row"><span>模型版本</span><strong>研究阶段</strong></div>{station?.latest && <div className="zo-inspector-note"><small>机场观测 / NOAA AWC</small><strong>{time(station.latest.observed_at)}</strong><span>气温 {station.latest.temperature_c ?? '—'} °C · 风速 {station.latest.wind_kt ?? '—'} kt</span><p>仅代表机场点位气象。</p></div>}<div className="zo-inspector-note"><small>下一步</small><p>{city ? CITY_CHECKS[city.id][0] : '选择城市查看来源与核查清单。'}</p></div><Link className="zo-inspector-link" to={cityPath(selectedCity, 'data')}>查看数据来源与缺口 ↗</Link></div></aside>
@@ -126,7 +131,7 @@ function Overview({ observations, city, onCity }) {
     ['内涝点位等级', '—', '无经过验证的四城输出'],
     ['来源目录', String(ZHEJIANG_SOURCES.length).padStart(2, '0'), '开放入口与申请线索'],
   ]
-  return <><div className="zo-metrics">{cards.map(([label, value, note]) => <Card key={label} className="zo-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></Card>)}</div><div className="zo-dashboard-grid"><Card className="zo-map-card"><SectionTitle kicker="SPATIAL VIEW / 空间视图" title={city ? `${city.name}城市范围` : '浙江四城态势'} trailing={<Mark tone="muted">位置示意</Mark>}/><ProvinceMap cityId={city?.id} onCity={onCity}/><div className="zo-map-caption"><span>© OpenStreetMap contributors</span><span>台风 / 降雨 / 潮位 / 积水图层待接入</span></div></Card><div className="zo-dashboard-rail"><Card><SectionTitle kicker="DATA HEALTH / 数据状态" title={city ? '当前来源' : '四城状态'}/>{city ? <><div className="zo-health-line"><span>{city.name}</span><Mark tone={state.tone}>{state.label}</Mark></div><p className="zo-fineprint">{state.detail}</p><Link className="zo-text-link" to={cityPath(city.id, 'data')}>查看 {sourceCount(city.id)} 条来源线索 ↗</Link></> : ZHEJIANG_CITIES.map((item) => { const status = cityState(observations, item.id); return <Link className="zo-health-line" key={item.id} to={cityPath(item.id)}><span>{item.name}</span><Mark tone={status.tone}>{status.label}</Mark></Link> })}</Card><Card><SectionTitle kicker="ACTION / 核查入口" title="下一步"/>{(city ? CITY_CHECKS[city.id] : ['选择城市检查来源时效', '核对台风与降水开放数据接口', '建立历史事件的双时间证据']).map((text, index) => <div className="zo-action-line" key={text}><span>0{index + 1}</span><p>{text}</p></div>)}<Link className="zo-text-link" to={cityPath(city?.id || 'ningbo', 'decision')}>打开决策建议板 ↗</Link></Card></div></div><Card className="zo-bottom-card"><SectionTitle kicker="EVIDENCE / 研究流程" title="从观测到建议"/><div className="zo-process"><span>真实观测<small>来源与双时间</small></span><b>→</b><span>复合分析<small>城市参数与事件</small></span><b>→</b><span>影响评估<small>人口与设施</small></span><b>→</b><span>决策建议<small>人工复核</small></span></div></Card></>
+  return <><div className="zo-metrics">{cards.map(([label, value, note]) => <Card key={label} className="zo-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></Card>)}</div><div className="zo-dashboard-grid"><Card className="zo-map-card"><SectionTitle kicker="SPATIAL VIEW / 空间视图" title={city ? `${city.name}城市范围` : '浙江四城态势'} trailing={<Mark tone="muted">位置示意</Mark>}/><ProvinceMap cityId={city?.id} onCity={onCity}/><div className="zo-map-caption"><span>© OpenStreetMap contributors</span><span>台风 / 降雨 / 潮位 / 积水图层待接入</span></div></Card><div className="zo-dashboard-rail"><Card><SectionTitle kicker="DATA HEALTH / 数据状态" title={city ? '当前来源' : '四城状态'}/>{city ? <><div className="zo-health-line"><span>{city.name}</span><Mark tone={state.tone}>{state.label}</Mark></div><p className="zo-fineprint">{state.detail}</p><Link className="zo-text-link" to={cityPath(city.id, 'data')}>查看 {sourceCount(city.id)} 条来源线索 ↗</Link></> : ZHEJIANG_CITIES.map((item) => { const status = cityState(observations, item.id); return <Link className="zo-health-line" key={item.id} to={cityPath(item.id)}><span>{item.name}</span><Mark tone={status.tone}>{status.label}</Mark></Link> })}</Card><Card><SectionTitle kicker="ACTION / 核查入口" title="下一步"/>{(city ? CITY_CHECKS[city.id] : ['选择城市检查来源时效', '核对台风与降水开放数据接口', '建立历史事件的双时间证据']).map((text, index) => <div className="zo-action-line" key={text}><span>0{index + 1}</span><p>{text}</p></div>)}<Link className="zo-text-link" to={cityPath(city?.id || 'ningbo', 'decision')}>打开决策建议板 ↗</Link></Card></div></div><ZhejiangForecastPanel city={city}/><Card className="zo-bottom-card"><SectionTitle kicker="EVIDENCE / 研究流程" title="从观测到建议"/><div className="zo-process"><span>真实观测<small>来源与双时间</small></span><b>→</b><span>复合分析<small>城市参数与事件</small></span><b>→</b><span>影响评估<small>人口与设施</small></span><b>→</b><span>决策建议<small>人工复核</small></span></div></Card></>
 }
 
 function Points({ city, observations }) {
@@ -137,7 +142,7 @@ function Points({ city, observations }) {
 
 function Impact({ city }) {
   const layers = [['人口暴露', 'WorldPop / GHS-POP · 数据导入与许可待核'], ['道路交通', '道路与下穿通道 · 城市级中断记录待接入'], ['居民行为', '规则 / Agent 情景 · 需调查与事件记录校准'], ['生命线设施', '停电停水记录 · 需授权']]
-  return <div className="zo-two-col"><Card><SectionTitle kicker="IMPACT / 城市影响" title={`${city.name}居民与设施`}/><div className="zo-impact-hero"><span>影响人口</span><strong>—</strong><small>未接入可用于估算的暴露与积水图层</small></div><div className="zo-impact-grid">{['被困人口', '出行中断', '停电停水', '避难需求'].map((label) => <div key={label}><span>{label}</span><strong>—</strong></div>)}</div></Card><Card><SectionTitle kicker="LAYERS / 证据层" title="分析输入"/>{layers.map(([name, detail]) => <div className="zo-layer-line" key={name}><span className="zo-layer-symbol">◎</span><div><strong>{name}</strong><small>{detail}</small></div><Mark tone="muted">待接入</Mark></div>)}<p className="zo-fineprint">居民行为模拟须标注情景假设；不代表真实个人反应。</p></Card></div>
+  return <div className="zs-stack"><div className="zo-two-col"><Card><SectionTitle kicker="IMPACT / 城市影响" title={`${city.name}居民与设施`}/><div className="zo-impact-hero"><span>实际影响人口</span><strong>—</strong><small>未接入可用于估算的暴露与积水图层</small></div><div className="zo-impact-grid">{['被困人口', '出行中断', '停电停水', '避难需求'].map((label) => <div key={label}><span>{label}</span><strong>—</strong></div>)}</div></Card><Card><SectionTitle kicker="LAYERS / 证据层" title="分析输入"/>{layers.map(([name, detail]) => <div className="zo-layer-line" key={name}><span className="zo-layer-symbol">◎</span><div><strong>{name}</strong><small>{detail}</small></div><Mark tone="muted">待接入</Mark></div>)}<p className="zo-fineprint">下方图像为假设人群的规则分流，不代表真实居民反应。</p></Card></div><ResidentBehaviorPanel city={city}/></div>
 }
 
 function Decision({ city }) {
@@ -150,28 +155,25 @@ function Decision({ city }) {
 
 function Events({ city }) {
   const entries = city ? ZHEJIANG_EVENTS.filter((event) => event.city === city.id) : ZHEJIANG_EVENTS
-  return <div className="zo-two-col"><Card><SectionTitle kicker="EVENT LIBRARY / 资料登记" title="历史事件" trailing={<Mark tone="muted">按证据等级筛选</Mark>}/>{entries.length ? entries.map((event) => <a className="zo-event-row" key={event.id} href={event.url} target="_blank" rel="noreferrer"><span className="zo-event-year">{event.year}</span><div><strong>{event.title}</strong><small>{cityById(event.city)?.name} · {event.type} · {event.source}</small><p>{event.note}</p></div><Mark tone="amber">{event.grade}</Mark><Arrow/></a>) : <div className="zo-empty-state zo-empty-small"><span>◷</span><h3>暂无已登记的事件资料</h3><p>事件需附来源、发生时间和当时可获得的数据版本。</p></div>}</Card><Card><SectionTitle kicker="REPLAY / 回放规则" title="证据分级"/><div className="zo-grade"><b>A</b><span>完整签发预报、观测、点位与响应</span></div><div className="zo-grade"><b>B</b><span>部分点位与环境证据</span></div><div className="zo-grade"><b>C</b><span>仅环境驱动，缺点位真值</span></div><div className="zo-grade"><b>D</b><span>报道或事后复盘，仅作背景</span></div><p className="zo-fineprint">只有具备当时签发数据和独立真值的事件才能用于定量回测。</p></Card></div>
+  return <><div className="zo-two-col"><Card><SectionTitle kicker="EVENT LIBRARY / 资料登记" title="历史事件" trailing={<Mark tone="muted">按证据等级筛选</Mark>}/>{entries.length ? entries.map((event) => <a className="zo-event-row" key={event.id} href={event.url} target="_blank" rel="noreferrer"><span className="zo-event-year">{event.year}</span><div><strong>{event.title}</strong><small>{cityById(event.city)?.name} · {event.type} · {event.source}</small><p>{event.note}</p></div><Mark tone="amber">{event.grade}</Mark><Arrow/></a>) : <div className="zo-empty-state zo-empty-small"><span>◷</span><h3>暂无已登记的内涝事件资料</h3><p>下方只有历史降雨与路径资料，不能据此确认城市积水事件。</p></div>}</Card><Card><SectionTitle kicker="REPLAY / 回放规则" title="证据分级"/><div className="zo-grade"><b>A</b><span>完整签发预报、观测、点位与响应</span></div><div className="zo-grade"><b>B</b><span>部分点位与环境证据</span></div><div className="zo-grade"><b>C</b><span>仅环境驱动，缺点位真值</span></div><div className="zo-grade"><b>D</b><span>报道或事后复盘，仅作背景</span></div><p className="zo-fineprint">只有具备当时签发数据和独立真值的事件才能用于定量回测。</p></Card></div><HistoricalRainPanel city={city}/><HistoricalTrackPanel city={city}/></>
 }
 
 function Scenario({ city }) {
-  const [rain, setRain] = useState(50)
-  const [tide, setTide] = useState('normal')
-  const [river, setRiver] = useState('normal')
-  const [drainage, setDrainage] = useState('normal')
-  const [run, setRun] = useState(null)
-  const result = useMemo(() => run ? scenarioAssessment(run) : null, [run])
-  return <div className="zo-two-col"><Card><SectionTitle kicker="SCENARIO / 参数" title={`${city.name}情景预演`} trailing={<Mark tone="violet">模拟情景</Mark>}/><div className="zo-form-grid"><label>假设 24 小时降雨量 <strong>{rain} mm</strong><input type="range" min="0" max="300" step="5" value={rain} onChange={(e) => setRain(Number(e.target.value))}/></label><label>潮位状态<select value={tide} onChange={(e) => setTide(e.target.value)}><option value="normal">常态</option><option value="high">偏高（假设）</option></select></label><label>河网水位<select value={river} onChange={(e) => setRiver(e.target.value)}><option value="normal">常态</option><option value="high">偏高（假设）</option></select></label><label>排水能力<select value={drainage} onChange={(e) => setDrainage(e.target.value)}><option value="normal">常态</option><option value="reduced">下降（假设）</option></select></label></div><button className="zo-primary zo-run-button" type="button" onClick={() => setRun({ rain, tide, river, drainage })}>运行规则演练 ↗</button><p className="zo-fineprint">输入均为假设值。规则演练用于比较核查优先级，不代表物理内涝预测。</p></Card><Card><SectionTitle kicker="OUTPUT / 演练输出" title="建议视图"/>{result ? <><div className="zo-scenario-result"><span>演练核查优先级</span><strong>{result.label}</strong><small>{result.detail}</small></div><div className="zo-scenario-inputs">24h 降雨 {run.rain} mm · 潮位{run.tide === 'high' ? '偏高' : '常态'} · 河网{run.river === 'high' ? '偏高' : '常态'} · 排水{run.drainage === 'reduced' ? '下降' : '常态'}</div>{CITY_CHECKS[city.id].map((item, index) => <div className="zo-action-line" key={item}><span>0{index + 1}</span><p>{item}</p></div>)}</> : <div className="zo-empty-state zo-empty-small"><span>◈</span><h3>设置条件并运行</h3><p>结果将显示情景核查优先级和城市建议模板。</p></div>}</Card></div>
+  return <ScenarioStudio city={city}/>
 }
 
-function Data({ city }) {
+function Data({ city, observations }) {
   const entries = city ? ZHEJIANG_SOURCES.filter((source) => source.city === city.id || source.city === 'all') : ZHEJIANG_SOURCES
+  const audit = observations.assessment
+  const snapshot = observations.data
   return <>
     <div className="zo-data-summary">
       <Card><strong>{entries.length}</strong><span>来源条目</span></Card>
-      <Card><strong>01</strong><span>公开快照适配</span></Card>
+      <Card><strong>04</strong><span>公开快照适配</span></Card>
       <Card><strong>—</strong><span>城市积水实测</span></Card>
     </div>
-    <Card><SectionTitle kicker="SOURCE REGISTRY / 数据来源" title="接入与许可"/><div className="zo-source-table-wrap"><table className="zo-source-table"><thead><tr><th>来源</th><th>范围</th><th>接入状态</th><th>时效 / 覆盖</th><th>许可</th></tr></thead><tbody>{entries.map((source) => <tr key={source.id}><td><a href={source.url} target="_blank" rel="noreferrer"><strong>{source.name} ↗</strong><small>{source.publisher} · {source.category}</small></a></td><td>{source.id === 'awc' ? '四城机场' : source.city === 'all' ? '全省目录' : cityById(source.city)?.name}</td><td><Mark tone={source.id === 'awc' ? 'mint' : 'amber'}>{source.access}</Mark></td><td>{source.cadence}<small>{source.coverage}</small></td><td>{source.license}</td></tr>)}</tbody></table></div></Card>
+    <Card><SectionTitle kicker="SNAPSHOT / 质量核查" title="公开机场快照" trailing={<Mark tone={audit?.valid ? 'mint' : 'amber'}>{observations.state === 'loading' ? '读取中' : audit?.valid ? '结构通过' : '不可用'}</Mark>}/><div className="zo-model-row"><span>抓取时间 · 北京时间</span><strong>{snapshot?.fetched_at ? time(snapshot.fetched_at) : '—'}</strong></div><div className="zo-model-row"><span>本轮站点覆盖</span><strong>{audit ? `${audit.coverage} / 4` : '—'}</strong></div><div className="zo-model-row"><span>缺少站点</span><strong>{audit?.missing?.length ? audit.missing.map((id) => cityById(id)?.name || id).join(' · ') : audit ? '无' : '—'}</strong></div><div className="zo-model-row"><span>实际可获得时间</span><strong>未获独立证据 · null</strong></div><p className="zo-fineprint">结构校验只确认四站身份、时序、质量字段和明确缺失；不证明数据能代表城区雨量或积水，也不证明可用于历史回测。{audit?.issues?.length ? `校验问题：${audit.issues.join('、')}` : ''}</p></Card>
+    <Card><SectionTitle kicker="SOURCE REGISTRY / 数据来源" title="接入与许可"/><div className="zo-source-table-wrap"><table className="zo-source-table"><thead><tr><th>来源</th><th>范围</th><th>接入状态</th><th>时效 / 覆盖</th><th>许可</th></tr></thead><tbody>{entries.map((source) => <tr key={source.id}><td><a href={source.url} target="_blank" rel="noreferrer"><strong>{source.name} ↗</strong><small>{source.publisher} · {source.category}</small></a></td><td>{source.id === 'awc' ? '四城机场' : source.id === 'ibtracs' ? '四城邻近路径' : source.id === 'ecmwf' ? '四城预报格点' : source.id === 'ghcnd' ? '4 站日值 / 温州本地缺失' : source.city === 'all' ? '全省目录' : cityById(source.city)?.name}</td><td><Mark tone={['awc', 'ibtracs', 'ecmwf', 'ghcnd'].includes(source.id) ? 'mint' : 'amber'}>{source.access}</Mark></td><td>{source.cadence}<small>{source.coverage}</small></td><td>{source.license}</td></tr>)}</tbody></table></div></Card>
     <Card><SectionTitle kicker="MODEL / 版本状态" title="浙江模型"/><div className="zo-model-row"><span>四城统一数据契约</span><Mark tone="mint">方案已定义</Mark></div><div className="zo-model-row"><span>点位四级概率模型</span><Mark tone="amber">训练与验证待完成</Mark></div><div className="zo-model-row"><span>居民 Agent 与资源优化</span><Mark tone="amber">情景研究阶段</Mark></div><div className="zo-model-row"><span>公众预警与自动调度</span><Mark tone="muted">未启用</Mark></div></Card>
   </>
 }
@@ -184,7 +186,7 @@ function About() {
       <div className="zo-about-grid">
         <Card><h2>数据口径</h2><p>每条记录应保留来源、许可、观测时间、实际可获得时间、时区、空间基准、单位、质量与缺失状态。真实观测、历史记录、模型推断和模拟情景分别标记。</p></Card>
         <Card><h2>模型与建议</h2><p>城市参数需分别校准；点位等级、居民影响和资源方案须经过历史事件回测。建议保留触发依据、时间窗和人工复核状态。</p></Card>
-        <Card><h2>当前网站</h2><p>公开机场气象快照对四城发起查询，各城市仅显示本轮实际返回的记录。其他来源仍是目录和申请线索；规则演练采用用户输入的假设条件。</p></Card>
+        <Card><h2>当前网站</h2><p>公开机场气象快照对四城发起查询，各城市仅显示本轮实际返回的记录；ECMWF 天气模式格点提供降雨预报驱动，历史最佳路径用于筛选待核验事件。城区实测雨量、潮位、河网和积水来源仍需准入；规则演练采用用户输入的假设条件。</p></Card>
         <Card><h2>使用边界</h2><p>本站供研究分析和专业辅助研判。公众预警由主管部门发布；本站不自动执行封路、转移、泵闸或救援调度。</p></Card>
       </div><div className="zo-about-footer"><a href="https://github.com/TenetJustin/cityos-flood" target="_blank" rel="noreferrer">GitHub 仓库 ↗</a><Link to="/workbench/ningbo/data">查看来源目录 ↗</Link></div>
     </div>
