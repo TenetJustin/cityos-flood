@@ -1,4 +1,4 @@
-"""Fail-closed realtime observation ingestion core for the five cities.
+"""Fail-closed realtime observation ingestion core for configured city scopes.
 
 This module defines the dependency-injection boundary for external providers and
 normalises provider candidates into canonical, idempotent observation records.
@@ -43,7 +43,27 @@ from typing import Protocol
 SHANGHAI = timezone(timedelta(hours=8), "Asia/Shanghai")
 
 CITY_ORDER = ("shanghai", "ningbo", "fuzhou", "shenzhen", "haikou")
-CITY_IDS = frozenset(CITY_ORDER)
+ZHEJIANG_CITY_ORDER = ("ningbo", "taizhou", "wenzhou", "hangzhou")
+ALL_CITY_ORDER = tuple(dict.fromkeys((*CITY_ORDER, *ZHEJIANG_CITY_ORDER)))
+CITY_IDS = frozenset(ALL_CITY_ORDER)
+
+
+class InvalidCityScope(ValueError):
+    """The requested snapshot city scope is unknown or ambiguous."""
+
+
+def normalize_city_order(city_order) -> tuple[str, ...]:
+    """Validate and freeze an explicit city scope for ingestion or snapshots."""
+    if not isinstance(city_order, (tuple, list)):
+        raise InvalidCityScope("city_order must be a list or tuple of city IDs")
+    normalized = tuple(city_order)
+    if (
+        not normalized
+        or any(not isinstance(city, str) or city not in CITY_IDS for city in normalized)
+        or len(set(normalized)) != len(normalized)
+    ):
+        raise InvalidCityScope("city_order must contain unique supported city IDs")
+    return normalized
 
 PHENOMENON_ORDER = (
     "rainfall",
@@ -289,8 +309,8 @@ def empty_rejected_counts() -> dict[str, int]:
     return {code: 0 for code in ALL_ERROR_CODES}
 
 
-def validate_city(value: object) -> str | None:
-    if not isinstance(value, str) or value not in CITY_IDS:
+def validate_city(value: object, *, city_ids=frozenset(CITY_IDS)) -> str | None:
+    if not isinstance(value, str) or value not in city_ids:
         return "unknown_city"
     return None
 
@@ -419,6 +439,7 @@ def _normalize_candidate(
     received_at: datetime,
     processed_at: datetime,
     until: datetime,
+    allowed_city_ids: frozenset[str],
 ) -> tuple[dict | None, dict | None]:
     """Validate one provider candidate and return a canonical record or error."""
     if not isinstance(candidate, dict):
@@ -491,10 +512,10 @@ def _normalize_candidate(
             )
 
     city_id = candidate["city_id"]
-    code = validate_city(city_id)
+    code = validate_city(city_id, city_ids=allowed_city_ids)
     if code:
         return None, _rejected(
-            code, "city_id is not one of the five supported cities",
+            code, "city_id is not in the configured city scope",
             provider_record_id=error_record_id, field="city_id",
         )
     phenomenon = candidate["phenomenon"]
@@ -785,6 +806,7 @@ def poll_provider(
     received_at: datetime,
     processed_at: datetime,
     freshness_limits_minutes: dict[str, int] | None = None,
+    city_order=CITY_ORDER,
 ) -> dict:
     """Poll one provider exactly once and return an auditable batch result.
 
@@ -792,6 +814,8 @@ def poll_provider(
     they are never converted into an empty normal snapshot.  Invalid caller
     configuration also fails closed before the provider is called.
     """
+    city_order = normalize_city_order(city_order)
+    allowed_city_ids = frozenset(city_order)
     provider_id_value = getattr(provider, "provider_id", None)
     provider_id = (
         provider_id_value
@@ -882,6 +906,7 @@ def poll_provider(
                 [],
                 as_of=processed_dt,
                 freshness_limits_minutes=limits,
+                city_order=city_order,
             )
             _merge_counts(snapshot["rejected_counts"], result["rejected_counts"])
             snapshot["provenance"]["excluded_counts"] = dict(
@@ -916,6 +941,7 @@ def poll_provider(
             [],
             as_of=processed_dt,
             freshness_limits_minutes=limits,
+            city_order=city_order,
         )
         return _provider_failure(result, exc=exc, snapshot=snapshot)
 
@@ -926,6 +952,7 @@ def poll_provider(
             [],
             as_of=processed_dt,
             freshness_limits_minutes=limits,
+            city_order=city_order,
         )
         return _provider_failure(
             result,
@@ -944,6 +971,7 @@ def poll_provider(
                 received_at=received_dt,
                 processed_at=processed_dt,
                 until=until_dt,
+                allowed_city_ids=allowed_city_ids,
             )
         except Exception:  # noqa: BLE001 - malformed candidate must not escape
             record, error = None, _rejected(
@@ -962,6 +990,7 @@ def poll_provider(
         accepted,
         as_of=processed_dt,
         freshness_limits_minutes=limits,
+        city_order=city_order,
     )
 
     if conflict is not None:

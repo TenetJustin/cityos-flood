@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .realtime_analysis import build_realtime_snapshot
-from .realtime_ingestion import record_content_fingerprint
+from .realtime_ingestion import CITY_ORDER, normalize_city_order, record_content_fingerprint
 
 MAX_SNAPSHOT_RECORDS = 100_000
 
@@ -71,8 +71,14 @@ def save_records(path: Path, records: list[dict]) -> dict:
     return {"inserted_count": inserted, "repeated_count": repeated}
 
 
-def load_snapshot(path: Path, *, as_of: datetime | None = None) -> dict:
+def load_snapshot(
+    path: Path,
+    *,
+    as_of: datetime | None = None,
+    city_order=CITY_ORDER,
+) -> dict:
     """Describe stored records only; never promote them to forecast input."""
+    city_order = normalize_city_order(city_order)
     as_of = as_of or datetime.now(timezone.utc)
     if not path.is_file():
         records = []
@@ -86,7 +92,11 @@ def load_snapshot(path: Path, *, as_of: datetime | None = None) -> dict:
                     "SELECT payload FROM observations ORDER BY record_id"
                 )
             ]
-    snapshot = build_realtime_snapshot(records, as_of=as_of)
+    snapshot = build_realtime_snapshot(
+        records,
+        as_of=as_of,
+        city_order=city_order,
+    )
     snapshot["intake_label"] = "contributed_unverified" if records else "not_connected"
     snapshot["stored_record_count"] = len(records)
     return snapshot

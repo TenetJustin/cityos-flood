@@ -9,6 +9,7 @@ import { ScenarioStudio } from './ScenarioStudio.jsx'
 import RealEventPanel from './RealEventPanel.jsx'
 import { assessForecastSnapshot, cityForecast, forecastDisplayStatus } from './zhejiangForecast.js'
 import { activeFloodPointCount, assessRealEventSnapshot } from './realEventEvidence.js'
+import { assessZhejiangRealtimeSnapshot, zhejiangRealtimeEndpoint } from './zhejiangRealtime.js'
 import './zhejiang.css'
 
 const cityById = (id) => ZHEJIANG_CITIES.find((city) => city.id === id)
@@ -44,6 +45,30 @@ function useRealEventEvidence() {
     const timer = setInterval(load, 5 * 60_000)
     return () => { active = false; clearInterval(timer) }
   }, [])
+  return result
+}
+
+function useZhejiangRealtime() {
+  const endpoint = zhejiangRealtimeEndpoint(import.meta.env.VITE_REALTIME_API_BASE)
+  const [result, setResult] = useState(() => ({ state: endpoint ? 'loading' : 'not_configured', snapshot: null, checkedAt: null }))
+  useEffect(() => {
+    if (!endpoint) {
+      setResult({ state: 'not_configured', snapshot: null, checkedAt: null })
+      return undefined
+    }
+    let active = true
+    const load = () => fetch(endpoint, { cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json() })
+      .then((snapshot) => {
+        if (!active) return
+        const quality = assessZhejiangRealtimeSnapshot(snapshot)
+        setResult({ state: quality.valid ? snapshot.status : 'invalid', snapshot: quality.valid ? snapshot : null, checkedAt: Date.now() })
+      })
+      .catch(() => { if (active) setResult({ state: 'unavailable', snapshot: null, checkedAt: Date.now() }) })
+    load()
+    const timer = setInterval(load, 60_000)
+    return () => { active = false; clearInterval(timer) }
+  }, [endpoint])
   return result
 }
 
@@ -166,7 +191,7 @@ const NAV = [
   ['scenario', '推演', '◈'],
 ]
 
-function Workbench({ observations, realEvents }) {
+function Workbench({ observations, realEvents, realtime }) {
   const { cityId, section } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -184,7 +209,7 @@ function Workbench({ observations, realEvents }) {
     {menuOpen && <button className="zo-backdrop" aria-label="关闭菜单" onClick={() => setMenuOpen(false)}/>}
     <div className="zo-content"><header className="zo-topbar"><div className="zo-top-left"><button className="zo-menu-button" type="button" aria-label="打开导航" onClick={() => setMenuOpen(true)}>☰</button><Link to="/" className="zo-top-home"><LogoMark/><span><span>City</span><span className="zo-logo-os">OS</span></span></Link><span className="zo-slash">/</span><select aria-label="选择城市" value={city?.id || 'region'} onChange={(event) => navigate(event.target.value === 'region' ? '/workbench' : cityPath(event.target.value, activeSection === 'overview' ? '' : activeSection))}><option value="region">浙江区域</option>{ZHEJIANG_CITIES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="zo-slash">/</span><strong>{NAV.find(([id]) => id === activeSection)?.[1] || '工作台'}</strong></div><div className="zo-top-right"><BeijingClock/><span className="zo-landfall-time">预计登陆 · —</span><Mark tone="muted">非公众预警</Mark><Link to="/about/product" aria-label="打开产品说明">?</Link></div></header>
       <main id="zo-main" className="zo-main"><div className="zo-page-heading"><div><div className="zo-kicker">{city ? `CITY / ${city.id.toUpperCase()}` : 'REGION / ZHEJIANG'} <span className="zo-kicker-line"/></div><h1>{city ? city.name : '浙江区域'}<span> / {NAV.find(([id]) => id === activeSection)?.[1]}</span></h1><p>{city ? city.focus : '宁波、台州、温州、杭州 · 统一视图'}</p></div></div>
-        {activeSection === 'overview' && <Overview city={city} onCity={(id) => navigate(cityPath(id))} realEvents={realEvents}/>}
+        {activeSection === 'overview' && <Overview city={city} onCity={(id) => navigate(cityPath(id))} realEvents={realEvents} realtime={realtime}/>}
         {activeSection === 'impact' && <Impact city={city || cityById(selectedCity)} observations={observations} realEvents={realEvents}/>}
         {activeSection === 'scenario' && <Scenario city={city || cityById(selectedCity)}/>}
         {!NAV.some(([id]) => id === activeSection) && <Card><p>页面不存在。</p><Link to="/workbench">返回工作台</Link></Card>}
@@ -192,7 +217,7 @@ function Workbench({ observations, realEvents }) {
   </div>
 }
 
-function Overview({ city, onCity, realEvents }) {
+function Overview({ city, onCity, realEvents, realtime }) {
   const checks = city ? CITY_CHECKS[city.id] : ['关注短时强降雨及城市低洼点巡查', '核对河网水位与沿海潮位条件', '确认重点道路与排水设施现场状态']
   const reported = ZHEJIANG_CITIES.reduce((sum, item) => sum + activeFloodPointCount(realEvents.data, item.id, realEvents.checkedAt), 0)
   const selectedReports = city ? activeFloodPointCount(realEvents.data, city.id, realEvents.checkedAt) : reported
@@ -204,7 +229,32 @@ function Overview({ city, onCity, realEvents }) {
         <Card className="zo-decision-preview"><SectionTitle kicker="DECISION / 首要建议" title="决策建议"/><div className="zo-initial-advice"><Mark tone="blue">初步分析</Mark><p>{selectedReports ? `近 6 小时取得 ${selectedReports} 条积水来源记录。建议核对点位、发生时间和现场状态，并检查相邻低洼道路；是否采取措施由主管人员复核。` : city ? `${city.name}当前无可核验的城区积水风险输出。建议按常态监测，并优先核实短时雨量、河网/潮位和低洼点现场信息。` : '四城均缺少可核验的城区积水风险输出。建议保持常态监测，并优先补核降雨、水位与低洼点现场信息。'}</p></div><div className="zo-action-preview"><span>需要人工复核</span>{checks.slice(0, 2).map((item) => <div key={item}>· {item}</div>)}</div><Link className="zo-text-link" to={cityPath(city?.id || 'ningbo', 'impact')}>查看建议措施与复核清单 →</Link></Card>
       </aside>
     </div>
+    <RealtimeSnapshotCard city={city} result={realtime}/>
   </>
+}
+
+const REALTIME_PHENOMENA = {
+  rainfall: '降雨', tide_level: '潮位', river_level: '河流水位',
+  flood_depth: '积水深度', road_closure: '道路中断',
+}
+
+function RealtimeSnapshotCard({ city, result }) {
+  const statusLabel = {
+    not_configured: '未配置实时服务', loading: '连接中', current: '有近期记录',
+    degraded: '覆盖不完整或已延迟', unavailable: '数据不可用', invalid: '数据契约校验失败',
+  }[result.state] || '数据不可用'
+  const summaries = result.snapshot?.summaries?.filter((item) => !city || item.city_id === city.id) || []
+  return <Card className="zo-realtime-card">
+    <SectionTitle kicker="REALTIME API / 描述性观测" title={city ? `${city.name} · 接入数据` : '浙江四城 · 接入数据'} trailing={<Mark tone={result.state === 'current' ? 'mint' : 'muted'}>{statusLabel}</Mark>}/>
+    {result.state === 'not_configured' && <p className="zo-realtime-empty">当前部署未配置实时 API。静态天气/历史快照仍按各自来源显示；这里不会把页面刷新当作新观测。</p>}
+    {result.state === 'loading' && <p className="zo-realtime-empty">正在读取受控服务的描述性观测快照…</p>}
+    {result.state === 'unavailable' && <p className="zo-realtime-empty">实时服务暂不可用或尚无记录。缺失不代表安全；请核对数据链路和现场情况。</p>}
+    {result.state === 'invalid' && <p className="zo-realtime-empty">返回数据未通过区域、时间、字段或能力边界校验，数值已隐藏。</p>}
+    {['current', 'degraded'].includes(result.state) && <>
+      {summaries.length ? <div className="zo-realtime-rows">{summaries.map((item) => <div className="zo-realtime-row" key={`${item.city_id}-${item.phenomenon}-${item.unit}`}><strong>{ZHEJIANG_CITIES.find((entry) => entry.id === item.city_id)?.name} · {REALTIME_PHENOMENA[item.phenomenon] || item.phenomenon}</strong><span>{item.record_count} 条 / {item.station_count} 个站点 · 最新观测 {time(item.latest_observed_at)}</span><small>数据实际可获得 {time(item.latest_available_at)} · {item.unit}{item.vertical_datum ? ` · ${item.vertical_datum}` : ''}</small></div>)}</div> : <p className="zo-realtime-empty">当前范围没有可展示的观测摘要；请勿把空记录解读为零值。</p>}
+      <p className="zo-realtime-meta">服务快照时刻 {time(result.snapshot.as_of)} · 本页检查 {result.checkedAt ? time(result.checkedAt) : '—'} · 仅描述性汇总，未用于积水预测、预警或调度</p>
+    </>}
+  </Card>
 }
 
 function Impact({ city, observations, realEvents }) {
@@ -254,5 +304,6 @@ function About() {
 export default function ZhejiangApp() {
   const observations = useObservations()
   const realEvents = useRealEventEvidence()
-  return <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}><Routes><Route path="/" element={<Landing/>}/><Route path="/welcome" element={<Landing/>}/><Route path="/workbench" element={<Workbench observations={observations} realEvents={realEvents}/>}/><Route path="/workbench/:cityId" element={<Workbench observations={observations} realEvents={realEvents}/>}/><Route path="/workbench/:cityId/:section" element={<Workbench observations={observations} realEvents={realEvents}/>}/><Route path="/overview" element={<Navigate to="/workbench" replace/>}/><Route path="/cities/*" element={<Navigate to="/workbench" replace/>}/><Route path="/about" element={<Navigate to="/about/product" replace/>}/><Route path="/about/:section" element={<About/>}/><Route path="*" element={<div className="zo-not-found"><h1>页面不存在</h1><Link to="/">返回首页</Link></div>}/></Routes></BrowserRouter>
+  const realtime = useZhejiangRealtime()
+  return <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}><Routes><Route path="/" element={<Landing/>}/><Route path="/welcome" element={<Landing/>}/><Route path="/workbench" element={<Workbench observations={observations} realEvents={realEvents} realtime={realtime}/>}/><Route path="/workbench/:cityId" element={<Workbench observations={observations} realEvents={realEvents} realtime={realtime}/>}/><Route path="/workbench/:cityId/:section" element={<Workbench observations={observations} realEvents={realEvents} realtime={realtime}/>}/><Route path="/overview" element={<Navigate to="/workbench" replace/>}/><Route path="/cities/*" element={<Navigate to="/workbench" replace/>}/><Route path="/about" element={<Navigate to="/about/product" replace/>}/><Route path="/about/:section" element={<About/>}/><Route path="*" element={<div className="zo-not-found"><h1>页面不存在</h1><Link to="/">返回首页</Link></div>}/></Routes></BrowserRouter>
 }

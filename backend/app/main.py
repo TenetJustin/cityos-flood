@@ -52,7 +52,7 @@ from .data_paths import MissingResearchDataError, require_external, research_dat
 from .realworld_response import InvalidResponseDataError
 from .event_evidence import InvalidEventEvidenceError
 from .evidence_contract import InvalidEventManifestError
-from .realtime_ingestion import poll_provider
+from .realtime_ingestion import ZHEJIANG_CITY_ORDER, poll_provider
 from .realtime_store import ObservationConflict, ObservationLimit, load_snapshot, save_records
 from .data_paths import EXTERNAL_DATA
 
@@ -118,6 +118,12 @@ def _realtime_store_path() -> Path:
     configured = os.environ.get("CITYOS_EXTERNAL_DATA_DIR")
     root = Path(configured).expanduser().resolve() if configured else EXTERNAL_DATA
     return root / "realtime" / "observations.sqlite3"
+
+
+def _zhejiang_realtime_store_path() -> Path:
+    configured = os.environ.get("CITYOS_EXTERNAL_DATA_DIR")
+    root = Path(configured).expanduser().resolve() if configured else EXTERNAL_DATA
+    return root / "zhejiang" / "realtime" / "observations.sqlite3"
 
 
 class DispatchRequest(BaseModel):
@@ -361,9 +367,24 @@ async def _invalid_event_manifest(_request: Request, exc: InvalidEventManifestEr
 
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+
+def _cors_origins_from_environment(value: str | None = None) -> list[str]:
+    """Return an explicit browser-origin allowlist; wildcard CORS is forbidden."""
+    configured = os.environ.get("CITYOS_CORS_ORIGINS", "") if value is None else value
+    if not configured.strip():
+        return [
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            "https://tenetjustin.github.io",
+        ]
+    origins = [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
+    if "*" in origins:
+        raise ValueError("CITYOS_CORS_ORIGINS must not contain a wildcard")
+    return list(dict.fromkeys(origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins_from_environment(),
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=[
@@ -526,6 +547,74 @@ async def api_realtime_intake(payload: RealtimeIntakeRequest, request: Request):
     except (sqlite3.DatabaseError, OSError) as exc:
         raise HTTPException(status_code=503, detail="接入存储暂不可用") from exc
     return {
+        "status": result["status"],
+        "intake_label": "contributed_unverified",
+        "accepted_count": result["accepted_count"],
+        "rejected_count": result["rejected_count"],
+        "rejected_counts": result["rejected_counts"],
+        **stored,
+        "forecast_input_ready": False,
+        "model_assimilation_ready": False,
+        "public_warning_ready": False,
+        "automatic_dispatch_ready": False,
+    }
+
+
+@app.get("/api/zhejiang/realtime/snapshot")
+def api_zhejiang_realtime_snapshot():
+    """Read the Zhejiang four-city descriptive view, isolated from legacy data."""
+    try:
+        snapshot = load_snapshot(
+            _zhejiang_realtime_store_path(),
+            city_order=ZHEJIANG_CITY_ORDER,
+        )
+        return {"region_id": "zhejiang", **snapshot}
+    except (ObservationLimit, sqlite3.DatabaseError, OSError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="浙江实时研究数据暂不可读") from exc
+
+
+@app.post("/api/zhejiang/realtime/intake")
+async def api_zhejiang_realtime_intake(payload: RealtimeIntakeRequest, request: Request):
+    """Accept scoped Zhejiang observations without promoting them to model input."""
+    configured = os.environ.get("CITYOS_REALTIME_INGEST_TOKEN")
+    if not configured or not os.environ.get("CITYOS_EXTERNAL_DATA_DIR"):
+        raise HTTPException(status_code=503, detail="接入未配置")
+    supplied = request.headers.get("X-CityOS-Intake-Token", "")
+    if not hmac.compare_digest(supplied, configured):
+        raise HTTPException(status_code=401, detail="接入令牌无效")
+    received = datetime.now(timezone.utc)
+    candidates = []
+    for raw in payload.records:
+        candidate = dict(raw)
+        flags = candidate.get("quality_flags")
+        if isinstance(flags, list) and "source_not_independently_verified" not in flags:
+            candidate["quality_flags"] = [*flags, "source_not_independently_verified"]
+        candidates.append(candidate)
+    processed = datetime.now(timezone.utc)
+    result = poll_provider(
+        _SubmittedProvider(payload.provider_id, candidates),
+        since=None,
+        until=processed,
+        received_at=received,
+        processed_at=processed,
+        city_order=ZHEJIANG_CITY_ORDER,
+    )
+    if result["status"] in {"rejected", "unavailable"}:
+        raise HTTPException(status_code=422, detail={
+            "status": result["status"],
+            "rejected_counts": result["rejected_counts"],
+        })
+    try:
+        stored = save_records(
+            _zhejiang_realtime_store_path(),
+            result["accepted_records"],
+        )
+    except ObservationConflict as exc:
+        raise HTTPException(status_code=409, detail="观测 ID 与已有内容冲突") from exc
+    except (sqlite3.DatabaseError, OSError) as exc:
+        raise HTTPException(status_code=503, detail="浙江接入存储暂不可用") from exc
+    return {
+        "region_id": "zhejiang",
         "status": result["status"],
         "intake_label": "contributed_unverified",
         "accepted_count": result["accepted_count"],

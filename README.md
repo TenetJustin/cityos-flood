@@ -47,7 +47,7 @@ npm ci
 npm run dev
 ```
 
-打开 `http://127.0.0.1:5173/`。前端的静态数据位于 `frontend/public/data/`；本地 FastAPI 后端仍可单独运行研究接口，见[历史原型说明](docs/LEGACY_FIVE_CITY_README.md#快速开始)。
+打开 `http://127.0.0.1:5173/`。前端的静态快照位于 `frontend/public/data/`。实时 API 的浙江四城专属接入路径、环境变量及安全边界见[网站交付说明](docs/WEBSITE_DELIVERY.md)。
 
 ## 构建与验证
 

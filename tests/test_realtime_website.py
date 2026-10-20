@@ -17,6 +17,17 @@ from tests.test_realtime_pipeline import AS_OF, _candidate, _poll_records
 
 
 class RealtimeWebsiteTest(unittest.TestCase):
+    def test_cors_defaults_are_explicit_and_reject_wildcards(self):
+        defaults = main._cors_origins_from_environment("")
+        self.assertIn("https://tenetjustin.github.io", defaults)
+        self.assertNotIn("*", defaults)
+        self.assertEqual(
+            main._cors_origins_from_environment("https://example.org, https://api.example.org/"),
+            ["https://example.org", "https://api.example.org"],
+        )
+        with self.assertRaises(ValueError):
+            main._cors_origins_from_environment("https://example.org, *")
+
     def test_empty_snapshot_marks_missing_and_disables_capabilities(self):
         with tempfile.TemporaryDirectory() as folder:
             snapshot = load_snapshot(Path(folder) / "records.sqlite3", as_of=AS_OF)
@@ -72,3 +83,39 @@ class RealtimeWebsiteTest(unittest.TestCase):
                 self.assertEqual(snapshot["stored_record_count"], 1)
                 self.assertEqual(snapshot["intake_label"], "contributed_unverified")
                 self.assertFalse(snapshot["public_warning_ready"])
+
+    def test_zhejiang_api_is_scoped_and_storage_isolated(self):
+        record = _candidate(city_id="hangzhou")
+        record["observed_at"] = datetime.now(timezone.utc) - timedelta(minutes=10)
+        record["provider_published_at"] = datetime.now(timezone.utc) - timedelta(minutes=9)
+        for name in ("observed_at", "provider_published_at"):
+            record[name] = record[name].isoformat()
+        body = main.RealtimeIntakeRequest(provider_id="zhejiang-test", records=[record])
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.dict(os.environ, {
+                "CITYOS_REALTIME_INGEST_TOKEN": "local-test-token",
+                "CITYOS_EXTERNAL_DATA_DIR": folder,
+            }), patch.object(main, "EXTERNAL_DATA", Path(folder)):
+                accepted = asyncio.run(main.api_zhejiang_realtime_intake(
+                    body,
+                    SimpleNamespace(headers={"X-CityOS-Intake-Token": "local-test-token"}),
+                ))
+                self.assertEqual(accepted["region_id"], "zhejiang")
+                self.assertEqual(accepted["accepted_count"], 1)
+                self.assertFalse(accepted["forecast_input_ready"])
+                snapshot = main.api_zhejiang_realtime_snapshot()
+                self.assertEqual(snapshot["region_id"], "zhejiang")
+                self.assertEqual(set(snapshot["city_status"]), {"ningbo", "taizhou", "wenzhou", "hangzhou"})
+                self.assertEqual(snapshot["stored_record_count"], 1)
+                self.assertEqual(main.api_realtime_snapshot()["stored_record_count"], 0)
+
+                wrong_region = main.RealtimeIntakeRequest(
+                    provider_id="zhejiang-test",
+                    records=[{**record, "city_id": "shanghai"}],
+                )
+                with self.assertRaises(HTTPException) as blocked:
+                    asyncio.run(main.api_zhejiang_realtime_intake(
+                        wrong_region,
+                        SimpleNamespace(headers={"X-CityOS-Intake-Token": "local-test-token"}),
+                    ))
+                self.assertEqual(blocked.exception.status_code, 422)

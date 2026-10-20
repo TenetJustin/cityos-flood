@@ -5,16 +5,22 @@ the filesystem, environment variables, credentials, or production data.
 """
 import json
 import socket
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 from backend.app.realtime_analysis import build_realtime_snapshot
 from backend.app.realtime_ingestion import (
     CITY_ORDER,
+    ZHEJIANG_CITY_ORDER,
     PHENOMENON_ORDER,
+    InvalidCityScope,
+    normalize_city_order,
     poll_provider,
 )
+from backend.app.realtime_store import load_snapshot, save_records
 
 TZ8 = timezone(timedelta(hours=8))
 OBSERVED = datetime(2026, 10, 19, 12, 0, tzinfo=TZ8)
@@ -1041,6 +1047,45 @@ class RealtimeFailureAndSafetyTest(unittest.TestCase):
         extra = build_realtime_snapshot([{"bad": "record"}], as_of=AS_OF)
         self.assertEqual(extra["status"], "unavailable")
         self.assertEqual(extra["rejected_counts"]["extra_field"], 1)
+
+    def test_zhejiang_scope_is_four_cities_and_rejects_other_region_records(self):
+        records = [
+            _candidate(city_id=city)
+            for city in ZHEJIANG_CITY_ORDER
+        ]
+        accepted = _poll_records(records, city_order=ZHEJIANG_CITY_ORDER)
+        self.assertEqual(accepted["accepted_count"], 4)
+        self.assertEqual(
+            set(accepted["snapshot"]["city_status"]),
+            set(ZHEJIANG_CITY_ORDER),
+        )
+        self.assertEqual(len(accepted["snapshot"]["missing_city_phenomena"]), 16)
+
+        wrong_scope = _poll_records(
+            [_candidate(city_id="shanghai")],
+            city_order=ZHEJIANG_CITY_ORDER,
+        )
+        self.assertEqual(wrong_scope["accepted_count"], 0)
+        self.assertEqual(wrong_scope["rejected_counts"]["unknown_city"], 1)
+
+    def test_zhejiang_snapshot_storage_is_scoped_and_validated(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "zhejiang.sqlite3"
+            empty = load_snapshot(path, as_of=AS_OF, city_order=ZHEJIANG_CITY_ORDER)
+            self.assertEqual(set(empty["city_status"]), set(ZHEJIANG_CITY_ORDER))
+            self.assertEqual(len(empty["missing_city_phenomena"]), 20)
+
+            records = _poll_records(
+                [_candidate(city_id="hangzhou")],
+                city_order=ZHEJIANG_CITY_ORDER,
+            )["accepted_records"]
+            self.assertEqual(save_records(path, records)["inserted_count"], 1)
+            populated = load_snapshot(path, as_of=AS_OF, city_order=ZHEJIANG_CITY_ORDER)
+            self.assertEqual(populated["stored_record_count"], 1)
+            self.assertNotIn("shanghai", populated["city_status"])
+
+        with self.assertRaises(InvalidCityScope):
+            normalize_city_order(("ningbo", "ningbo"))
 
 
 if __name__ == "__main__":

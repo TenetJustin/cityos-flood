@@ -21,6 +21,7 @@ from datetime import datetime
 from .realtime_ingestion import (
     CANONICAL_OPTIONAL_FIELDS,
     CANONICAL_REQUIRED_FIELDS,
+    ALL_CITY_ORDER,
     CITY_ORDER,
     canonical_record_id,
     InvalidFreshnessConfig,
@@ -28,6 +29,7 @@ from .realtime_ingestion import (
     empty_rejected_counts,
     iso_shanghai,
     normalize_freshness_limits,
+    normalize_city_order,
     parse_aware_datetime,
     record_content_fingerprint,
     validate_city,
@@ -40,7 +42,7 @@ from .realtime_ingestion import (
     validate_vertical_datum,
 )
 
-CITY_RANK = {city: index for index, city in enumerate(CITY_ORDER)}
+CITY_RANK = {city: index for index, city in enumerate(ALL_CITY_ORDER)}
 PHENOMENON_RANK = {
     phenomenon: index for index, phenomenon in enumerate(PHENOMENON_ORDER)
 }
@@ -98,6 +100,8 @@ def _record_payload(record: dict) -> dict:
 
 def _normalise_record(
     raw: object,
+    *,
+    allowed_city_ids: frozenset[str],
 ) -> tuple[dict | None, str | None]:
     """Validate a canonical record; return (record, quality_exclusion_code)."""
     if not isinstance(raw, dict):
@@ -131,7 +135,7 @@ def _normalise_record(
         if not isinstance(raw[field], str) or not raw[field]:
             return None, "invalid_record"
 
-    code = validate_city(raw["city_id"])
+    code = validate_city(raw["city_id"], city_ids=allowed_city_ids)
     if code:
         return None, code
     city_id = raw["city_id"]
@@ -295,11 +299,12 @@ def _unavailable_snapshot(
     rejected_counts: dict[str, int],
     provenance: dict,
     as_of_iso: str | None,
+    city_order: tuple[str, ...],
 ) -> dict:
-    city_status = {city: "unavailable" for city in CITY_ORDER}
+    city_status = {city: "unavailable" for city in city_order}
     missing = [
         {"city_id": city, "phenomenon": phenomenon}
-        for city in CITY_ORDER
+        for city in city_order
         for phenomenon in PHENOMENON_ORDER
     ]
     payload = {
@@ -608,8 +613,11 @@ def build_realtime_snapshot(
     *,
     as_of: datetime,
     freshness_limits_minutes: dict[str, int] | None = None,
+    city_order=CITY_ORDER,
 ) -> dict:
     """Build a deterministic descriptive snapshot from canonical records."""
+    city_order = normalize_city_order(city_order)
+    allowed_city_ids = frozenset(city_order)
     rejected_counts = empty_rejected_counts()
     excluded: list[dict] = []
     conflict_details: list[dict] = []
@@ -621,6 +629,7 @@ def build_realtime_snapshot(
             rejected_counts=rejected_counts,
             provenance={"input_record_count": 0},
             as_of_iso=None,
+            city_order=city_order,
         )
     as_of_iso = iso_shanghai(as_of_dt)
 
@@ -633,6 +642,7 @@ def build_realtime_snapshot(
             rejected_counts=rejected_counts,
             provenance={"input_record_count": 0},
             as_of_iso=as_of_iso,
+            city_order=city_order,
         )
 
     if not isinstance(records, list):
@@ -642,6 +652,7 @@ def build_realtime_snapshot(
             rejected_counts=rejected_counts,
             provenance={"input_record_count": 0},
             as_of_iso=as_of_iso,
+            city_order=city_order,
         )
 
     input_count = len(records)
@@ -649,7 +660,9 @@ def build_realtime_snapshot(
     duplicate_count = 0
     for raw in records:
         try:
-            record, quality_code = _normalise_record(raw)
+            record, quality_code = _normalise_record(
+                raw, allowed_city_ids=allowed_city_ids
+            )
         except Exception:  # noqa: BLE001 - malformed input must not escape
             record, quality_code = None, "invalid_record"
         if record is None:
@@ -734,10 +747,10 @@ def build_realtime_snapshot(
 
     if batch_conflict:
         summaries: list[dict] = []
-        city_status = {city: "unavailable" for city in CITY_ORDER}
+        city_status = {city: "unavailable" for city in city_order}
         missing = [
             {"city_id": city, "phenomenon": phenomenon}
-            for city in CITY_ORDER
+            for city in city_order
             for phenomenon in PHENOMENON_ORDER
         ]
         status = "unavailable"
@@ -753,7 +766,7 @@ def build_realtime_snapshot(
         }
         missing = [
             {"city_id": city, "phenomenon": phenomenon}
-            for city in CITY_ORDER
+            for city in city_order
             for phenomenon in PHENOMENON_ORDER
             if (city, phenomenon) not in covered
         ]
@@ -777,7 +790,7 @@ def build_realtime_snapshot(
             descriptive = True
 
         city_status = {}
-        for city in CITY_ORDER:
+        for city in city_order:
             city_records = [
                 record for record in selected if record["city_id"] == city
             ]
