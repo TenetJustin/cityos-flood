@@ -7,7 +7,7 @@ export const SCENARIO_DEFAULTS = Object.freeze({
   shelterCapacity: 500, assistanceNeedPct: 12,
 })
 
-export const HAZARD_LABELS = { typhoon: '台风主体', rainband: '外围雨带', extreme_rain: '非台风强降雨' }
+export const HAZARD_LABELS = { typhoon: '台风主体', rainband: '外围雨带', extreme_rain: '非台风强降雨', other_rain: '其他降雨' }
 export const LEVEL_LABELS = { normal: '常态', elevated: '偏高', high: '高', extreme: '极端' }
 
 const LIMITS = {
@@ -20,7 +20,8 @@ function boundedNumber(value, key) {
   if (value === '' || value === null || value === undefined) throw new RangeError(`${key} is required`)
   const number = Number(value)
   const [min, max] = LIMITS[key]
-  if (!Number.isInteger(number) || number < min || number > max) throw new RangeError(`${key} must be an integer between ${min} and ${max}`)
+  const decimalRain = key === 'rainMm24' || key === 'peakMmHour'
+  if (!Number.isFinite(number) || number < min || number > max || (decimalRain ? Math.abs(number * 10 - Math.round(number * 10)) > 1e-6 : !Number.isInteger(number))) throw new RangeError(`${key} must be ${decimalRain ? 'a 0.1-mm value' : 'an integer'} between ${min} and ${max}`)
   return number
 }
 
@@ -101,7 +102,7 @@ export function scenarioComparisonRows(current, baseline) {
   ]
 }
 
-export function scenarioPlanMarkdown({ cityName, name, result, comparison = null, reviewNotes = '', checks = [], createdAt, startBjt = '' }) {
+export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = null, comparison = null, reviewNotes = '', checks = [], createdAt, startBjt = '' }) {
   const { input, behaviour } = result
   const lines = [
     `# ${cityName} · ${name || '桌面推演'}预案草案`, '',
@@ -109,6 +110,13 @@ export function scenarioPlanMarkdown({ cityName, name, result, comparison = null
     `- 推演起算：${startBjt ? `${startBjt.replace('T', ' ')} Asia/Shanghai` : '待填写'}`,
     '- 证据类型：模拟情景；非真实观测、非已验证预测、非官方预案',
     `- 规则版本：${result.modelVersion}`, '',
+    ...(weatherDriver ? [
+      '## 外部降雨驱动（模型推断）', '',
+      `- ECMWF IFS 格点 24 小时降雨：${weatherDriver.rawRainMm24} mm；规则输入保留 0.1 mm 精度为 ${weatherDriver.rainMm24} mm。非城区雨量实测。`,
+      `- 有效窗口：${weatherDriver.startAt} 至 ${weatherDriver.endAt}（UTC）；起报：${weatherDriver.modelRunAt}；本系统首次取得：${weatherDriver.availableAt}。`,
+      `- 格点距城市示意中心：${weatherDriver.gridDistanceKm} km；原始文件 SHA-256：${weatherDriver.sourceSha256}。`,
+      `- 数据来源：${weatherDriver.sourceUrl}；1 小时峰值仍由人工假设，不来自此预报快照。`, '',
+    ] : ['- 降雨驱动：人工假设；未导入外部天气模式。', '']),
     '## 假设条件', '',
     `- 事件：${HAZARD_LABELS[input.hazard]}；时间窗：${input.horizonHours} 小时`,
     `- 降雨：24 小时 ${input.rainMm24} mm；1 小时峰值 ${input.peakMmHour} mm`,
@@ -119,7 +127,7 @@ export function scenarioPlanMarkdown({ cityName, name, result, comparison = null
     `- 核查优先级：${result.priority}（压力指标 ${result.pressure}/${result.pressureMax}；非风险概率）`,
     ...behaviour.map((item) => `- ${item.label}：${item.count} 人（假设分流）`),
     `- 假设避险容量缺口：${result.capacityGap} 人；道路可达缺口：${result.accessGap} 人`, '',
-    ...(comparison ? ['## 情景对照', '', `- 对照：${comparison.name}（同为模拟情景）`, `- 对照起算：${comparison.startBjt ? `${comparison.startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`, ...scenarioComparisonRows(result, comparison.result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`), ''] : []),
+    ...(comparison ? ['## 情景对照', '', `- 对照：${comparison.name}（同为模拟情景）`, `- 对照降雨来源：${comparison.weatherDriver ? `ECMWF 模式格点，起报 ${comparison.weatherDriver.modelRunAt}` : '人工假设'}`, `- 对照起算：${comparison.startBjt ? `${comparison.startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`, ...scenarioComparisonRows(result, comparison.result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`), ''] : []),
     '## 待核查事项', '', ...checks.map((item) => `- [ ] ${item}`), '',
     '## 编制备注与审批', '', reviewNotes || '（待填写）', '',
     '- [ ] 核对真实雨量、潮位、河网和积水证据及时间戳',

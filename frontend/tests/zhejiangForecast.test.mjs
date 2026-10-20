@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { assessForecastSnapshot, cityForecast, forecastDisplayStatus } from '../src/zhejiangForecast.js'
+import { assessForecastSnapshot, cityForecast, forecastDisplayStatus, forecastRainWindow } from '../src/zhejiangForecast.js'
 
 const path = new URL('../public/data/zhejiang-weather-forecast.json', import.meta.url)
 const sample = async () => JSON.parse(await readFile(path, 'utf8'))
@@ -28,4 +28,17 @@ test('missing or reclassified fields suppress numerical display', async () => {
   assert.ok(quality.issues.includes('classification_invalid'))
   assert.ok(quality.issues.includes('precip_invalid'))
   assert.equal(forecastDisplayStatus(snapshot), 'unavailable')
+})
+
+test('future 24-hour rain window is cumulative difference, not a 48-hour total', async () => {
+  const snapshot = await sample()
+  const now = Date.parse(snapshot.model_run_at) + 20 * 3_600_000
+  const window = forecastRainWindow(snapshot, 'ningbo', 48, now)
+  const city = cityForecast(snapshot, 'ningbo')
+  assert.ok(window)
+  assert.equal(window.rawRainMm24, Number((city.values[3].cumulative_precip_mm - city.values[2].cumulative_precip_mm).toFixed(3)))
+  assert.equal(window.rainMm24, Number(window.rawRainMm24.toFixed(1)))
+  assert.equal(window.evidenceType, 'model_inference')
+  assert.equal(forecastRainWindow(snapshot, 'ningbo', 24, now), null)
+  assert.equal(forecastRainWindow(snapshot, 'ningbo', 48, Date.parse(snapshot.model_run_at) + 25 * 3_600_000), null)
 })

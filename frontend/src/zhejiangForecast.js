@@ -38,3 +38,26 @@ export function forecastDisplayStatus(snapshot, now = Date.now()) {
 export function cityForecast(snapshot, cityId) {
   return snapshot?.cities?.find((city) => city.city_id === cityId) || null
 }
+
+// ECMWF tp is accumulated from run start. A 24-hour future window is a
+// difference of successive cumulative values, never the +48/+72 total itself.
+export function forecastRainWindow(snapshot, cityId, endingLeadHours, now = Date.now()) {
+  if (forecastDisplayStatus(snapshot, now) !== 'current' || ![24, 48, 72].includes(endingLeadHours)) return null
+  const city = cityForecast(snapshot, cityId)
+  if (!city) return null
+  const previousLead = endingLeadHours - 24
+  const end = city.values.find((item) => item.lead_hours === endingLeadHours)
+  const previous = previousLead === 0 ? { cumulative_precip_mm: 0 } : city.values.find((item) => item.lead_hours === previousLead)
+  const startAt = new Date(Date.parse(snapshot.model_run_at) + previousLead * 3_600_000).toISOString()
+  if (!end || !previous || Date.parse(startAt) < now) return null
+  const difference = Math.max(0, end.cumulative_precip_mm - previous.cumulative_precip_mm)
+  if (difference > 400) return null
+  return {
+    cityId, endingLeadHours, startAt, endAt: end.valid_at,
+    rainMm24: Number(difference.toFixed(1)), rawRainMm24: Number(difference.toFixed(3)),
+    modelRunAt: snapshot.model_run_at, availableAt: snapshot.available_at,
+    gridDistanceKm: city.grid_distance_km, evidenceType: 'model_inference',
+    publisher: snapshot.source.publisher, product: snapshot.source.product,
+    sourceUrl: snapshot.source.url, sourceSha256: snapshot.source_sha256,
+  }
+}

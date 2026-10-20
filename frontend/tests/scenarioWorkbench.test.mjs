@@ -10,6 +10,8 @@ test('scenario validates all numeric boundaries and disallows impossible peak ra
   assert.throws(() => normalizeScenario({ rainMm24: '' }), /rainMm24 is required/)
   assert.throws(() => normalizeScenario({ exposedPeople: null }), /exposedPeople is required/)
   assert.throws(() => normalizeScenario({ drainagePct: 50.5 }), /integer/)
+  assert.equal(normalizeScenario({ rainMm24: 1.2, peakMmHour: 0.7 }).rainMm24, 1.2)
+  assert.throws(() => normalizeScenario({ rainMm24: 1.23 }), /0.1-mm/)
 })
 
 test('Beijing-local start time must be a real calendar minute', () => {
@@ -54,4 +56,14 @@ test('draft plan carries assumptions, provenance boundary and approval gates', (
   assert.match(markdown, /## 情景对照/)
   assert.match(markdown, /当前 80 mm；对照 20 mm/)
   assert.match(markdown, /对照起算：2026-10-20 12:00 Asia\/Shanghai/)
+})
+
+test('imported ECMWF driver remains distinct from human peak and flood-model claims in plan', () => {
+  const driver = { rawRainMm24: 2.4, rainMm24: 2.4, startAt: '2026-10-20T06:00:00Z', endAt: '2026-10-21T06:00:00Z', modelRunAt: '2026-10-19T06:00:00Z', availableAt: '2026-10-19T19:31:00Z', gridDistanceKm: 5, sourceSha256: 'a'.repeat(64), sourceUrl: 'https://www.ecmwf.int/en/forecasts/datasets/open-data' }
+  const result = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 2.4, peakMmHour: 1 })
+  const markdown = scenarioPlanMarkdown({ cityName: '温州', name: '格点驱动', result, weatherDriver: driver, createdAt: '2026-10-20 12:00' })
+  assert.match(markdown, /外部降雨驱动（模型推断）/)
+  assert.match(markdown, /起报：2026-10-19T06:00:00Z/)
+  assert.match(markdown, /1 小时峰值仍由人工假设/)
+  assert.match(markdown, /非真实观测、非已验证预测/)
 })
