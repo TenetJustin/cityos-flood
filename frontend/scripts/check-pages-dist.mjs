@@ -5,6 +5,7 @@ import { ZHEJIANG_CITIES } from '../src/zhejiangData.js'
 import { assessZhejiangSnapshot } from '../src/zhejiangObservations.js'
 import { assessForecastSnapshot } from '../src/zhejiangForecast.js'
 import { assessHistoricalRain } from '../src/zhejiangHistoricalRain.js'
+import { assessSynopticRain } from '../src/zhejiangSynopticRain.js'
 import { assessTrackSnapshot } from '../src/historicalTracks.js'
 
 const dist = new URL('../dist/', import.meta.url)
@@ -36,5 +37,6 @@ else {
   assert.ok(Number.isFinite(Date.parse(forecast.attempted_at || '')))
 }
 assert.equal(assessHistoricalRain(await json('zhejiang-historical-rain-2021.json')).valid, true, 'historical rainfall malformed')
+assert.equal(assessSynopticRain(await json('zhejiang-synoptic-rain-2021.json')).valid, true, 'synoptic rainfall malformed')
 assert.equal(assessTrackSnapshot(await json('zhejiang-track-candidates.json')).valid, true, 'track index malformed')
-console.log('Static Pages routes and four evidence snapshots verified.')
+console.log('Static Pages routes and five evidence snapshots verified.')

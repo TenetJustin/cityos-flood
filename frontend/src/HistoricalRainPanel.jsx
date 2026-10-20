@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { assessHistoricalRain } from './zhejiangHistoricalRain.js'
+import SynopticRainPanel from './SynopticRainPanel.jsx'
 import './historicalRainPanel.css'
 
 const NAME = { ningbo: '宁波', taizhou: '台州', wenzhou: '温州', hangzhou: '杭州' }
@@ -25,7 +26,7 @@ export default function HistoricalRainPanel({ city }) {
   const stations = (snapshot?.stations || []).filter((item) => !city || item.city_id === city.id)
   const selected = stations.find((item) => item.station_id === selectedId) || stations[0]
   const max = selected ? Math.max(10, ...selected.daily.map((day) => day.precip_mm ?? 0)) : 10
-  return <section className="zo-card zh-rain-panel">
+  return <><section className="zo-card zh-rain-panel">
     <div className="zh-rain-heading"><div><small>HISTORICAL / 降雨资料切片</small><h2>2021 年 7 月 20—28 日 · 浙江站点</h2></div><span>历史记录 · 逐日报文汇总</span></div>
     <p className="zh-rain-intro">NOAA GHCN-Daily 的站点降水。杭州有本地站日值；定海、大陈岛、瑞安分别仅作宁波、台州、温州的区域参照。温州本地站在此时段缺失。不是城区积水或居民影响真值。</p>
     {state === 'loading' && <div className="zh-rain-empty">历史降雨读取中…</div>}
@@ -38,5 +39,5 @@ export default function HistoricalRainPanel({ city }) {
         <div className="zh-rain-source"><a href={selected.source_url} target="_blank" rel="noreferrer">原始站点文件 ↗</a><a href={snapshot.source.documentation_url} target="_blank" rel="noreferrer">字段与质量说明 ↗</a><span>文件 SHA-256 {selected.source_sha256.slice(0, 12)}…</span></div></>}
       <p className="zh-rain-boundary">来源标记 S：由逐时天气报文汇总，NOAA 提醒降雨值可能与真实逐日值显著不同。单条记录当时可获得时间未知（available_at = null）；不可用于 as-of 预测回测。无城区积水和实际行动记录。{snapshot.source.citation_url && <a href={snapshot.source.citation_url} target="_blank" rel="noreferrer">GHCN-Daily 引用 ↗</a>}</p>
     </>}
-  </section>
+  </section><SynopticRainPanel city={city}/></>
 }
