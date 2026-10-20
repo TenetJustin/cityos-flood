@@ -15,6 +15,12 @@ test('Zhejiang scope contains four distinct cities and source leads retain acces
   assert.match(riverArchive.access, /未接入模型/)
   assert.match(riverArchive.coverage, /263.*2015-08-19.*2019-09-23/)
   assert.match(riverArchive.note, /779\.51/)
+  const tideArchive = ZHEJIANG_SOURCES.find(({ id }) => id === 'wz-tide')
+  assert.match(tideArchive.access, /质量与站点待核/)
+  assert.match(tideArchive.coverage, /1,000,000.*38.*单位、时区和垂直基准/)
+  assert.match(tideArchive.note, /-42\.437–653\.24/)
+  const tideMetadata = ZHEJIANG_SOURCES.find(({ id }) => id === 'wz-tide-annual')
+  assert.match(tideMetadata.access, /需用户授权/)
 })
 
 test('scenario rule responds to compound assumptions without returning a flood probability', () => {
