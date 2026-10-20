@@ -132,3 +132,42 @@ a:hover{color:#347ccb}
 .zo-about-footer{color:#347ccb}
 .zo-not-found a{color:#347ccb}
 .zo-top-home .zo-logo-os{color:#5799e8}
+.zo-logo-glyph{width:36px;height:36px;border:1px solid rgba(87,153,232,.2);border-radius:50%;background:#fff;box-shadow:0 3px 12px rgba(31,61,97,.1)}
+.zo-logo-glyph img{width:72px;height:72px;left:-18px;top:-13px}
+.zo-workspace-tabs{display:flex;gap:7px;margin:0 0 16px;border-bottom:1px solid #dce7f3}
+.zo-workspace-tabs button{padding:11px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:#53677f;font:inherit;font-size:12px;cursor:pointer}
+.zo-workspace-tabs button:hover{color:#235c9d;background:#edf4fc}
+.zo-workspace-tabs button.active{border-bottom-color:#5799e8;color:#235c9d;font-weight:600}
+.zo-point-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.zo-point-item{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:7px 10px;padding:13px;border:1px solid #dce7f3;border-radius:9px;background:#f9fbfe;color:#172943}
+.zo-point-item:hover{background:#fff;border-color:#a9c9ec;color:#235c9d}
+.zo-point-item small{grid-column:2/-1;color:#63758d;font-size:10px}
+.zo-point-dot{width:9px;height:9px;border-radius:50%;background:#9aaabd}
+.zo-point-dot.mint{background:#5799e8;box-shadow:0 0 0 4px rgba(87,153,232,.12)}
+.zo-point-dot.amber{background:#bd8656}
+.zo-point-dot.muted{background:#9aaabd}
+.zo-point-evidence{margin-top:15px}
+.zo-shell .zs-heading small,.zo-shell .zs-muted,.zo-shell .zs-field,.zo-shell .zs-number small,.zo-shell .zs-driver,.zo-shell .zs-subhead,.zo-shell .zs-compare span,.zo-shell .zs-compare small,.zo-shell .zs-flow-wrap p,.zo-shell .zs-evidence-grid span,.zo-shell .zs-forecast-driver span,.zo-shell .zs-forecast-driver>small,.zo-shell .zs-forecast-provenance,.zo-shell .zs-sensitivity>p,.zo-shell .zs-sensitivity-legend span,.zo-shell .zs-sensitivity-case-heading span,.zo-shell .zs-sensitivity-case small,.zo-shell .zs-saved-choices>span{color:#53677f}
+.zo-shell .zs-heading h2,.zo-shell .zs-sensitivity h3,.zo-shell .zs-sensitivity-case-heading strong,.zo-shell .zs-compare strong,.zo-shell .zs-forecast-driver strong{color:#172943}
+.zo-shell .zs-tag{background:#f0edfb;color:#51477f;border-color:#d8d1f2}
+.zo-shell .zs-field input,.zo-shell .zs-field select,.zo-shell .zs-field textarea,.zo-shell .zs-plan-preview{background:#fff;color:#172943;border-color:#cbdced}
+.zo-shell .zs-field input:focus,.zo-shell .zs-field select:focus,.zo-shell .zs-field textarea:focus,.zo-shell .zs-plan-preview:focus{border-color:#5799e8;box-shadow:0 0 0 2px rgba(87,153,232,.16)}
+.zo-shell .zs-number small{color:#63758d}
+.zo-shell .zs-secondary{background:#fff;color:#344e6e;border-color:#cbdced}
+.zo-shell .zs-secondary:hover{background:#edf4fc}
+.zo-shell .zs-error{color:#9b4d35}
+.zo-shell .zs-track,.zo-shell .zs-sensitivity-bar{background:#e5edf6}
+.zo-shell .zs-compare>div,.zo-shell .zs-evidence-grid>div,.zo-shell .zs-sensitivity-case{border-color:#dce7f3}
+.zo-shell .zs-flow-wrap,.zo-shell .zs-forecast-driver,.zo-shell .zs-forecast-note,.zo-shell .zs-callout{background:#f4f8fc;color:#344e6e}
+.zo-shell .zs-forecast-note{border-left-color:#5799e8}
+.zo-shell .zs-callout{border-left-color:#d89b67}
+.zo-shell .zs-table-scroll{border-color:#dce7f3}
+.zo-shell .zs-table th,.zo-shell .zs-table td{border-color:#e2eaf3}
+.zo-shell .zs-table thead th{background:#eaf2fb;color:#344e6e}
+.zo-shell .zs-table tbody th,.zo-shell .zs-table td{color:#344e6e}
+.zo-shell .zs-saved-choices>label{border-color:#dce7f3;color:#344e6e;background:#fff}
+.zo-shell .zs-sensitivity{border-top-color:#dce7f3}
+.zo-shell .zs-sensitivity .zs-sensitivity-boundary{color:#8a5c2e}
+.zo-primary{background:linear-gradient(135deg,#2d73b8,#2b6fae);color:#fff;box-shadow:0 7px 18px rgba(45,115,184,.18)}
+.zo-primary:hover{background:#245e95;color:#fff}
+.zo-landing-footer a,.zo-text-link,.zo-inspector-link,.zo-sidebar-bottom a,.zo-map .leaflet-control-attribution a,.zo-about-footer a,.zo-not-found a,.zo-top-right>a{color:#2c70b8}
