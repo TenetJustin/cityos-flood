@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 export const EVIDENCE_FILES = [
   'zhejiang-observations.json',
+  'zhejiang-real-events.json',
   'zhejiang-weather-forecast.json',
   'zhejiang-historical-rain-2021.json',
   'zhejiang-synoptic-rain-2021.json',

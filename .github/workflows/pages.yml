@@ -62,6 +62,7 @@ jobs:
           name: zhejiang-evidence-${{ github.run_id }}
           path: |
             frontend/public/data/zhejiang-observations.json
+            frontend/public/data/zhejiang-real-events.json
             frontend/public/data/zhejiang-weather-forecast.json
             frontend/public/data/zhejiang-historical-rain-2021.json
             frontend/public/data/zhejiang-synoptic-rain-2021.json

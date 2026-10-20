@@ -7,6 +7,7 @@ import { assessForecastSnapshot } from '../src/zhejiangForecast.js'
 import { assessHistoricalRain } from '../src/zhejiangHistoricalRain.js'
 import { assessSynopticRain } from '../src/zhejiangSynopticRain.js'
 import { assessTrackSnapshot } from '../src/historicalTracks.js'
+import { assessRealEventSnapshot } from '../src/realEventEvidence.js'
 import { assessEvidenceManifest, EVIDENCE_FILES } from './evidence-manifest.mjs'
 
 const dist = new URL('../dist/', import.meta.url)
@@ -28,6 +29,7 @@ for (const route of ['workbench', 'about', 'about/product', 'welcome']) assert.e
 
 const observations = await json('zhejiang-observations.json')
 assert.equal(assessZhejiangSnapshot(observations).valid, true, 'airport snapshot malformed')
+assert.equal(assessRealEventSnapshot(await json('zhejiang-real-events.json')).valid, true, 'real event snapshot malformed')
 const forecast = await json('zhejiang-weather-forecast.json')
 if (forecast.state === 'ok') assert.equal(assessForecastSnapshot(forecast).valid, true, 'forecast snapshot malformed')
 else {
@@ -43,4 +45,4 @@ assert.equal(assessTrackSnapshot(await json('zhejiang-track-candidates.json')).v
 const manifest = await json('zhejiang-evidence-manifest.json')
 const evidenceBytes = Object.fromEntries(await Promise.all(EVIDENCE_FILES.map(async (path) => [path, await readFile(new URL(`data/${path}`, dist))])))
 assert.deepEqual(assessEvidenceManifest(manifest, evidenceBytes), { valid: true, issues: [] }, 'evidence hashes differ from deployed files')
-console.log('Static Pages routes, five evidence snapshots and exact-file hashes verified.')
+console.log(`Static Pages routes, ${EVIDENCE_FILES.length} evidence snapshots and exact-file hashes verified.`)
