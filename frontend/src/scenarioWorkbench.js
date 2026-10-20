@@ -31,6 +31,21 @@ export function validBeijingLocal(value) {
   return Number.isFinite(instant) && new Date(instant + 8 * 3_600_000).toISOString().slice(0, 16) === value
 }
 
+// Forecast provenance is a time-bounded model input, not a durable live observation.
+// Check it again at run/save/plan time; an already rendered result can become stale.
+export function weatherDriverIssue(driver, cityId, input, startBjt, now = Date.now()) {
+  if (!driver) return ''
+  if (driver.cityId !== cityId || driver.evidenceType !== 'model_inference' || driver.publisher !== 'ECMWF' || driver.sourceUrl !== 'https://www.ecmwf.int/en/forecasts/datasets/open-data' || !/^[0-9a-f]{64}$/.test(driver.sourceSha256 || '')) return '天气模式来源身份不匹配，请重新导入'
+  const run = Date.parse(driver.modelRunAt || '')
+  const available = Date.parse(driver.availableAt || '')
+  const start = Date.parse(driver.startAt || '')
+  const end = Date.parse(driver.endAt || '')
+  if (![run, available, start, end].every(Number.isFinite) || available < run || end - start !== 24 * 3_600_000 || !validBeijingLocal(startBjt) || Date.parse(`${startBjt}+08:00`) !== start) return '天气模式时间窗与情景不一致，请重新导入'
+  if (now < available || now >= start || now - run > 24 * 3_600_000) return '天气模式窗口已开始或起报过期，请重新导入'
+  if (Number(input.horizonHours) !== 24 || !Number.isFinite(driver.rawRainMm24) || driver.rawRainMm24 < 0 || driver.rawRainMm24 > 400 || Number(input.rainMm24) !== driver.rainMm24 || Number(driver.rawRainMm24.toFixed(1)) !== driver.rainMm24) return '天气模式雨量或推演时间窗已改变，请重新导入'
+  return ''
+}
+
 export function normalizeScenario(input) {
   const result = { ...SCENARIO_DEFAULTS, ...input }
   if (!Object.hasOwn(HAZARD_LABELS, result.hazard)) throw new RangeError('Invalid hazard')
