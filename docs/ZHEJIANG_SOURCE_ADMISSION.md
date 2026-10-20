@@ -6,8 +6,8 @@
 |---|---|---|---|
 | NOAA AWC METAR | 机场点位气象实况，逐条有观测时刻；构建时抓取四站，本轮覆盖按响应显示 | [API](https://aviationweather.gov/data/api/) 公开访问；原始报文再利用条款继续核对 | 已接入、已做结构/时序校验；不是城区雨量或积水真值 |
 | NOAA IBTrACS v04r01 | 西北太平洋事后最佳路径；站点无关，按四城中心 500 km 形成候选 | [产品页](https://www.ncei.noaa.gov/products/international-best-track-archive) 说明公开获取和引用；保留版本、哈希、抓取时间 | 已接入历史快照；单条路径首次公开时间未知，不用于 as-of 回测 |
-| ECMWF IFS Open Data | 逐次签发的全球天气模式预报，可作为 0–72 小时外部天气驱动候选 | [官方说明](https://www.ecmwf.int/en/forecasts/datasets/open-data)：免费公开子集按 CC BY 4.0 和附加条款；0.25° GRIB2；最近约 12 个起报周期滚动保留 | 准入候选；须验证降雨参数、累计量转换、起报/发布/抓取时刻、四城格点代表性及文件存档，不能当作城区内涝预测 |
-| NASA GPM IMERG Early/Late | 0.1°、半小时卫星降水估计；Early 约 4 小时、Late 约 12 小时延迟 | [数据目录](https://gpm.nasa.gov/data/directory) 和 [IMERG 说明](https://gpm.nasa.gov/data/imerg)；PPS 归档访问可能需要注册。旧 [Publisher API 文档](https://gpm.nasa.gov/precip-apps/doc) 所示端点在 2026-10-20 实测返回 HTML 而非 JSON | 准入候选；先确定有效 API/下载、使用政策、格点取样和质量字段；卫星估计不能标成地面雨量站观测 |
+| ECMWF IFS Open Data | 逐次签发的全球天气模式预报，可作四城 6/12/24/48/72 小时外部降雨驱动 | [官方说明](https://www.ecmwf.int/en/forecasts/datasets/open-data)：免费公开子集按 CC BY 4.0 和附加条款；0.25° GRIB2；最近约 12 个起报周期滚动保留 | 已取到同一起报批次四城格点并验证 GRIB 的 `tp`、米转毫米、累计区间、五个有效时间和格点距离；发布流程会按小时更新。正式发布时间仍未知，网页按 24 小时起报龄失效；原始 GRIB 未长期归档，不能用于跨事件 as-of 回测，也不是城区内涝预测 |
+| NASA GPM IMERG Early/Late | 0.1°、半小时卫星降水估计；Early 约 4 小时、Late 约 12 小时延迟 | [数据目录](https://gpm.nasa.gov/data/directory) 和 [IMERG 说明](https://gpm.nasa.gov/data/imerg)；[现行查看器](https://pmmpublisher.pps.eosdis.nasa.gov/) 明示下载需 NASA PPS 账户。旧 [Publisher API 文档](https://gpm.nasa.gov/precip-apps/doc) 所示端点在 2026-10-20 实测返回 HTML 而非 JSON | 准入候选；先确定有效 API/下载、使用政策、格点取样和质量字段；卫星估计不能标成地面雨量站观测 |
 | IOC Sea Level Monitoring Facility | 实时沿海潮位站可能提供外部边界条件 | [V2 API](https://api.ioc-sealevelmonitoring.org/v2/doc) 需注册获取密钥；[数据政策](https://www.ioc-sealevelmonitoring.org/disclaimer.php) 限非商业用途，原始实时数据未经充分质控 | 暂不接入；先核站点是否覆盖研究河口、垂直基准、许可范围与 API 权限 |
 | 浙江省与四城公开平台 | 城区雨量、水位、潮位、易涝点及泵站目录 | 逐个核验平台申请、条款、时间序列与站点坐标 | 多数仍是目录线索，尚无可审计接口数据 |
 
@@ -19,4 +19,4 @@
 4. 降水模式、卫星估计、站点观测和历史最佳路径分层显示；它们不能互相冒充，也不能单独校准城市积水或居民响应。
 5. 通过质量门槛后才接入自动刷新；先对每个来源单独展示健康、延迟和覆盖率，再允许进入组合分析。
 
-当前最有希望的无需专属城市权限的下一条链路是 ECMWF 公开预报和 NASA IMERG 卫星估计；它们可改善四城天气驱动证据，但**不替代**街道级实测积水、潮河水位、排水资产和独立影响真值。
+当前无需专属城市权限的天气预报链路已通过 ECMWF 样本接入；NASA IMERG 卫星估计仍需账号与现行下载接口。两者都**不替代**街道级实测积水、潮河水位、排水资产和独立影响真值。
