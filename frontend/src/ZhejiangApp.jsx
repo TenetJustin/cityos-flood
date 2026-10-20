@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CircleMarker, MapContainer, Rectangle, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { CITY_CHECKS, ZHEJIANG_CITIES, ZHEJIANG_EVENTS } from './zhejiangData.js'
@@ -11,6 +11,8 @@ import { assessForecastSnapshot, cityForecast, forecastDisplayStatus } from './z
 import { activeFloodPointCount, assessRealEventSnapshot } from './realEventEvidence.js'
 import { assessZhejiangRealtimeSnapshot, zhejiangRealtimeEndpoint } from './zhejiangRealtime.js'
 import './zhejiang.css'
+
+const ZhejiangVisualLab = lazy(() => import('./ZhejiangVisualLab.jsx'))
 
 const cityById = (id) => ZHEJIANG_CITIES.find((city) => city.id === id)
 const time = (value) => value && Number.isFinite(Date.parse(value))
@@ -230,6 +232,7 @@ function Overview({ city, onCity, realEvents, realtime }) {
       </aside>
     </div>
     <RealtimeSnapshotCard city={city} result={realtime}/>
+    <Suspense fallback={<Card className="zv-loading">正在加载交互式情景沙盘…</Card>}><ZhejiangVisualLab city={city}/></Suspense>
   </>
 }
 
@@ -291,10 +294,10 @@ function About() {
       <div className="zo-about-grid">
         <Card id="intro"><h2>产品介绍</h2><p>日常研究工作台：先看四城态势，再查看影响与预置建议，最后回溯事件或比较自定义情景。城市间共享交互流程，但本地数据、参数与模型需分别验证。</p></Card>
         <Card id="functions"><h2>功能说明</h2><p>实时态势展示公开天气模式格点和四城状态；影响与建议可展示有来源的积水点、居民区域汇总和部门行动，并提供人工复核建议；推演区支持自定义条件与历史事件回看。建议需由专业人员审核，不自动执行。</p></Card>
-        <Card id="technology"><h2>技术栈</h2><p>React、Vite、React Router 构建界面；Leon Sans（SIL Open Font License 1.1）用于拉丁文字与数字标题，中文回退至 Noto Sans SC；Leaflet 与 React-Leaflet 展示地图；GitHub Pages 发布静态站点，GitHub Actions 定时获取开放数据快照；Node.js 脚本负责规范化、质量核查与构建。</p></Card>
+        <Card id="technology"><h2>技术栈</h2><p>React、Vite、React Router 构建静态站点交互；Leon Sans（SIL Open Font License 1.1）用于拉丁文字与数字标题，中文回退至 Noto Sans SC；Leaflet / React-Leaflet 展示地理地图，Three.js 在浏览器绘制参数化合成地形，Recharts 展示可交互时间序列；GitHub Pages 发布静态站点，GitHub Actions 定时获取开放数据快照；Node.js 脚本负责规范化、质量核查与构建。沙盘不需要后端服务。</p></Card>
         <Card id="sources"><h2>数据来源与许可</h2><p>当前已用来源包括 ECMWF IFS Open Data 降水模式格点、NOAA AWC 机场 METAR、NOAA IBTrACS 历史路径、NOAA GHCN-Daily 历史站点切片及政府数据门户登记线索。不同来源的许可、采样范围、时效和可用性分别核对；门户有目录不等于接口已获批。详细注册与接口说明见 <a href="https://data.zjzwfw.gov.cn/dopServer/" target="_blank" rel="noreferrer">浙江·数据开放</a>。</p></Card>
         <Card id="impact"><h2>影响分析</h2><p>真实事件区仅在取得来源、时间与许可核验通过的记录后显示积水点、居民区域汇总和部门行动；零记录表示未取得报告。暴露规模、道路连通性与可达性仍需城区积水范围和设施资料验证后计算，情景中的居民行为图只展示规则假设。</p></Card>
-        <Card id="methods"><h2>计算与模型</h2><p>地图中的降雨圆形范围按 ECMWF 0.25° 邻近格点显示，值为同一起报累计降雨，非积水边界。情景台 `tabletop-rules-v1` 将输入的雨量、峰值、潮位、河网和排水档位映射为离散核查压力；该规则用于情景比较，不代表积水概率、严重度或经过训练的城市预测模型。可扩展的水动力候选技术包括 SFINCS 或 ANUGA，需本地地形、边界与水情数据校准。</p></Card>
+        <Card id="methods"><h2>计算与模型</h2><p>地图中的降雨圆形范围按 ECMWF 0.25° 邻近格点显示，值为同一起报累计降雨，非积水边界。情景台 `tabletop-rules-v1` 将输入的雨量、峰值、潮位、河网和排水档位映射为离散核查压力；该规则用于情景比较，不代表积水概率、严重度或经过训练的城市预测模型。实时态势的沙盘曲线根据用户假设的 24 小时总雨量与 1 小时峰值构造小时雨型，再将累计雨量、边界等级和排水假设映射为 0–1 规则指数及合成网格单元数。地形、建筑和水面由程序生成，不表达真实空间范围或水深。水动力候选技术包括 SFINCS 或 ANUGA，需本地地形、边界与水情数据校准后才可用于研究。</p></Card>
         <Card id="safety"><h2>使用边界与版本治理</h2><p>真实观测、历史记录、模型推断、模拟情景和缺失值分开展示。缺失不填零，也不等于安全。模型改进只能提出建议，经历史回测、安全检查和人工批准后发布新版本。网站不具备公众预警或自动调度资格。</p></Card>
       </div><div className="zo-about-footer"><a href="https://github.com/TenetJustin/cityos-flood/blob/main/docs/CITYOS_PRODUCT_GUIDE.md" target="_blank" rel="noreferrer">完整产品技术文档 ↗</a><a href="https://github.com/TenetJustin/cityos-flood" target="_blank" rel="noreferrer">GitHub 仓库 ↗</a><Link to="/workbench">返回工作台</Link></div>
     </div>
