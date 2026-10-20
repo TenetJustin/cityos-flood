@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CITY_CHECKS } from './zhejiangData.js'
-import { evaluateScenario, HAZARD_LABELS, LEVEL_LABELS, SCENARIO_DEFAULTS, SCENARIO_MODEL_VERSION, scenarioComparisonRows, scenarioPlanMarkdown, validBeijingLocal } from './scenarioWorkbench.js'
+import { behaviorSensitivityCases, evaluateScenario, HAZARD_LABELS, LEVEL_LABELS, SCENARIO_DEFAULTS, SCENARIO_MODEL_VERSION, scenarioComparisonRows, scenarioPlanMarkdown, validBeijingLocal } from './scenarioWorkbench.js'
 import { assessForecastSnapshot, forecastRainWindow } from './zhejiangForecast.js'
 import './scenarioStudio.css'
 
@@ -50,15 +50,32 @@ export function BehaviorFlow({ result }) {
   </div>
 }
 
+export function BehaviorSensitivity({ result }) {
+  const cases = behaviorSensitivityCases(result)
+  const total = result.input.exposedPeople
+  return <div className="zs-sensitivity">
+    <h3>响应条件敏感性</h3>
+    <p>固定天气和假设人群，只改变预警提前量 ±3 小时、道路可用比例 ±20 个百分点、避险容量 ×0.75 / ×1.25（越界截断）。这是三个指定条件的规则演练，不是可信区间。</p>
+    <div className="zs-sensitivity-legend">{result.behaviour.map((item) => <span key={item.id}><i style={{ backgroundColor: item.color }}/>{item.label}</span>)}</div>
+    {cases.map((item) => <div className="zs-sensitivity-case" key={item.id}>
+      <div className="zs-sensitivity-case-heading"><strong>{item.label}</strong><span>提前 {item.input.warningLeadHours} h · 道路 {item.input.roadOpenPct}% · 容量 {item.input.shelterCapacity} 人</span></div>
+      <div className="zs-sensitivity-bar" role="img" aria-label={`${item.label}：${item.result.behaviour.map((part) => `${part.label} ${part.count} 人`).join('，')}`}>
+        {item.result.behaviour.map((part) => <span key={part.id} style={{ width: `${total ? part.count / total * 100 : 0}%`, backgroundColor: part.color }}/>)}</div>
+      <small>{item.result.behaviour.map((part) => `${part.label} ${part.count} 人`).join(' · ')}</small>
+    </div>)}
+    <p className="zs-sensitivity-boundary">尚无居民调查或行为校准；图中的差异不能当作真实人数、概率或完整的不确定性范围。</p>
+  </div>
+}
+
 export function ResidentBehaviorPanel({ city }) {
   const [inputs, setInputs] = useState({ ...SCENARIO_DEFAULTS })
   const result = useMemo(() => evaluateScenario(inputs), [inputs])
   const change = (key, value) => setInputs((current) => ({ ...current, [key]: Math.max(0, Math.min(key === 'exposedPeople' || key === 'shelterCapacity' ? 200000 : key === 'warningLeadHours' ? 72 : 100, Number(value) || 0)) }))
   return <div className="zs-stack">
     <section className="zo-card"><div className="zs-heading"><div><small>BEHAVIOUR / 规则假设</small><h2>{city.name} · 居民行为规则示意</h2></div><span className="zs-tag">模拟情景</span></div>
-      <p className="zs-muted">先设置假设人群和响应条件，再观察流向变化。四城共用同一未校准规则；当前没有真实人口暴露图层、问卷或避险记录作为校准依据。</p>
+      <p className="zs-muted">先设置假设人群和响应条件，再观察流向变化。此页的固定背景条件是台风主体、24 小时雨量 {SCENARIO_DEFAULTS.rainMm24} mm、1 小时峰值 {SCENARIO_DEFAULTS.peakMmHour} mm、潮位{LEVEL_LABELS[SCENARIO_DEFAULTS.tideState]}、河网{LEVEL_LABELS[SCENARIO_DEFAULTS.riverState]}、排水能力 {SCENARIO_DEFAULTS.drainagePct}%；均为人工假设，不是{city.name}实况。四城共用同一未校准规则；当前没有真实人口暴露图层、问卷或避险记录作为校准依据。</p>
       <div className="zs-grid"><Field label="假设人群" unit="人" value={inputs.exposedPeople} min="0" max="200000" onChange={(v) => change('exposedPeople', v)}/><Field label="预警提前量" unit="小时" value={inputs.warningLeadHours} min="0" max="72" onChange={(v) => change('warningLeadHours', v)}/><Field label="道路可用比例" unit="%" value={inputs.roadOpenPct} min="0" max="100" onChange={(v) => change('roadOpenPct', v)}/><Field label="避险点假设容量" unit="人" value={inputs.shelterCapacity} min="0" max="200000" onChange={(v) => change('shelterCapacity', v)}/><Field label="需协助比例假设" unit="%" value={inputs.assistanceNeedPct} min="0" max="100" onChange={(v) => change('assistanceNeedPct', v)}/></div>
-      <BehaviorFlow result={result}/>
+      <BehaviorFlow result={result}/><BehaviorSensitivity result={result}/>
     </section>
     <section className="zo-card"><div className="zs-heading"><div><small>BOUNDARY / 解释边界</small><h2>还需哪些证据</h2></div></div><div className="zs-evidence-grid"><div><b>人口与建筑</b><span>人口格网、楼层、脆弱人群分布</span></div><div><b>道路与避险点</b><span>通行状态、容量、可达性和开放时间</span></div><div><b>真实响应</b><span>匿名调查、求助、转移与避险记录</span></div></div><p className="zs-muted">目前结果只适合桌面推演，不可写成“实际受影响人数”。</p></section>
   </div>
@@ -174,7 +191,7 @@ export function ScenarioStudio({ city }) {
       <div className="zs-actions"><button type="button" className="zo-primary" onClick={run}>运行桌面推演 ↗</button><button type="button" className="zs-secondary" onClick={() => { setInput({ ...SCENARIO_DEFAULTS }); setWeatherDriver(null); setImportNote(''); setResult(null); setDraft(''); setError('') }}>重置参数</button></div>{error && <p className="zs-error" role="alert">输入无效：{error}</p>}
     </section>
     {result && <><div className="zs-result-grid"><section className="zo-card"><div className="zs-heading"><div><small>RULE OUTPUT / 核查压力</small><h2>{result.priority}</h2></div><span className="zs-tag">规则版本 {result.modelVersion}</span></div><p className="zs-muted">压力指标 {result.pressure} / {result.pressureMax}，只用于同类桌面情景比较；不是内涝概率或四级风险等级。24 小时雨量来源：{weatherDriver ? `ECMWF 模型格点（${weatherDriver.rawRainMm24.toFixed(3)} mm，输入精度 0.1 mm）` : '人工假设'}；其他驱动仍为假设。</p>{result.drivers.map((driver) => <div className="zs-driver" key={driver.name}><span>{driver.name}</span><div className="zs-track"><i style={{ width: `${driver.points / driver.max * 100}%` }}/></div><b>{driver.points}/{driver.max}</b></div>)}</section><section className="zo-card"><div className="zs-heading"><div><small>COMPARE / 保存与对照</small><h2>同城情景比较</h2></div></div><button type="button" className="zs-secondary" onClick={save}>保存当前情景到本机</button><label className="zs-field zs-compare-select"><span>选择一个已保存情景</span><select value={compareId} onChange={(event) => { setCompareId(event.target.value); setDraft('') }}><option value="">暂不比较</option>{citySaved.map((item) => <option key={item.id} value={item.id}>{item.name} · {new Date(item.createdAt).toLocaleDateString('zh-CN')}</option>)}</select></label><ScenarioCompare current={result} comparison={comparison}/>{storageWarning && <p className="zs-error" role="status">{storageWarning}</p>}<p className="zs-muted">保存在当前浏览器，不同步、不构成正式历史事件。</p></section></div>
-      <section className="zo-card"><div className="zs-heading"><div><small>BEHAVIOUR / 可视化</small><h2>假设居民流向</h2></div><span className="zs-tag">非真实人数</span></div><BehaviorFlow result={result}/>{comparison && <p className="zs-muted">对照情景：进入避险点 {comparison.result.behaviour.find((item) => item.id === 'refuge').count} 人；当前情景 {result.behaviour.find((item) => item.id === 'refuge').count} 人。均为规则假设。</p>}{(result.capacityGap > 0 || result.accessGap > 0) && <p className="zs-callout">假设容量缺口 {result.capacityGap} 人、道路可达缺口 {result.accessGap} 人；需核对真实容量、开放状态及路网。</p>}</section>
+      <section className="zo-card"><div className="zs-heading"><div><small>BEHAVIOUR / 可视化</small><h2>假设居民流向</h2></div><span className="zs-tag">非真实人数</span></div><BehaviorFlow result={result}/><BehaviorSensitivity result={result}/>{comparison && <p className="zs-muted">对照情景：进入避险点 {comparison.result.behaviour.find((item) => item.id === 'refuge').count} 人；当前情景 {result.behaviour.find((item) => item.id === 'refuge').count} 人。均为规则假设。</p>}{(result.capacityGap > 0 || result.accessGap > 0) && <p className="zs-callout">假设容量缺口 {result.capacityGap} 人、道路可达缺口 {result.accessGap} 人；需核对真实容量、开放状态及路网。</p>}</section>
       <section className="zo-card"><div className="zs-heading"><div><small>PLAN / 人工编制</small><h2>预案草案</h2></div><span className="zs-tag">待复核</span></div><p className="zs-muted">结果可写入可编辑的桌面推演草案并下载 Markdown；不写入任何部门系统，也不自动成为正式预案。</p><label className="zs-field"><span>编制备注、责任人和现场核查记录</span><textarea rows="4" value={notes} onChange={(event) => { setNotes(event.target.value); setDraft('') }} placeholder="填写需核验的点位、来源和责任人；不要录入个人敏感信息。"/></label><div className="zs-actions"><button type="button" className="zo-primary" onClick={generate}>生成预案草案 ↗</button>{draft && <button type="button" className="zs-secondary" onClick={() => saveMarkdown(`${city.name}-${name}`, draft)}>下载 .md</button>}</div>{draft && <textarea className="zs-plan-preview" aria-label="预案草案正文，可复制" rows="18" value={draft} onChange={(event) => setDraft(event.target.value)}/>}</section>
     </>}
   </div>

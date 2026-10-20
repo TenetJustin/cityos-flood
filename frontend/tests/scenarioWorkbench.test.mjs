@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { evaluateScenario, normalizeScenario, SCENARIO_DEFAULTS, scenarioComparisonRows, scenarioPlanMarkdown, validBeijingLocal } from '../src/scenarioWorkbench.js'
+import { behaviorSensitivityCases, evaluateScenario, normalizeScenario, SCENARIO_DEFAULTS, scenarioComparisonRows, scenarioPlanMarkdown, validBeijingLocal } from '../src/scenarioWorkbench.js'
 
 test('scenario validates all numeric boundaries and disallows impossible peak rain', () => {
   assert.throws(() => normalizeScenario({ rainMm24: 10, peakMmHour: 20 }), /cannot exceed/)
@@ -31,6 +31,24 @@ test('resident pathways sum to the stated hypothetical population', () => {
   }
 })
 
+test('response sensitivity varies only declared assumptions and remains an illustrative stress test', () => {
+  const base = evaluateScenario(SCENARIO_DEFAULTS)
+  const cases = behaviorSensitivityCases(base)
+  assert.deepEqual(cases.map((item) => item.id), ['constrained', 'configured', 'supported'])
+  assert.deepEqual(cases.map((item) => [item.input.warningLeadHours, item.input.roadOpenPct, item.input.shelterCapacity]), [[3, 50, 375], [6, 70, 500], [9, 90, 625]])
+  for (const item of cases) {
+    assert.equal(item.input.rainMm24, base.input.rainMm24)
+    assert.equal(item.input.exposedPeople, base.input.exposedPeople)
+    assert.equal(item.result.behaviour.reduce((sum, part) => sum + part.count, 0), base.input.exposedPeople)
+    assert.equal(item.result.evidenceType, 'simulated_scenario')
+    assert.equal('probability' in item.result, false)
+  }
+  assert.equal(cases[1].result, base)
+  const edge = behaviorSensitivityCases(evaluateScenario({ ...SCENARIO_DEFAULTS, exposedPeople: 0, warningLeadHours: 0, roadOpenPct: 100, shelterCapacity: 200000 }))
+  assert.ok(edge.every((item) => item.input.warningLeadHours >= 0 && item.input.roadOpenPct <= 100 && item.input.shelterCapacity <= 200000))
+  assert.ok(edge.every((item) => item.result.behaviour.every((part) => part.count === 0)))
+})
+
 test('stronger compound assumptions raise the review pressure, not a claimed flood probability', () => {
   const mild = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 25, peakMmHour: 10, tideState: 'normal', riverState: 'normal', drainagePct: 100 })
   const severe = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 250, peakMmHour: 100, tideState: 'extreme', riverState: 'extreme', drainagePct: 20 })
@@ -56,6 +74,9 @@ test('draft plan carries assumptions, provenance boundary and approval gates', (
   assert.match(markdown, /## 情景对照/)
   assert.match(markdown, /当前 80 mm；对照 20 mm/)
   assert.match(markdown, /对照起算：2026-10-20 12:00 Asia\/Shanghai/)
+  assert.match(markdown, /## 居民响应条件敏感性（非统计置信区间）/)
+  assert.match(markdown, /响应受限：提前 3 小时、道路 50%、容量 375 人/)
+  assert.match(markdown, /尚无居民调查、行为校准或点位影响真值/)
 })
 
 test('imported ECMWF driver remains distinct from human peak and flood-model claims in plan', () => {

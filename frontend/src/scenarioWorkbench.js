@@ -84,6 +84,24 @@ export function evaluateScenario(raw) {
   }
 }
 
+// Deterministic stress cases, not a confidence interval or a sampled population.
+// Only response conditions vary; weather, hazard and hypothetical population stay fixed.
+export function behaviorSensitivityCases(result) {
+  const base = result.input
+  const cases = [
+    {
+      id: 'constrained', label: '响应受限',
+      input: { ...base, warningLeadHours: Math.max(0, base.warningLeadHours - 3), roadOpenPct: Math.max(0, base.roadOpenPct - 20), shelterCapacity: Math.max(0, Math.round(base.shelterCapacity * 0.75)) },
+    },
+    { id: 'configured', label: '当前设定', input: base },
+    {
+      id: 'supported', label: '响应较顺畅',
+      input: { ...base, warningLeadHours: Math.min(72, base.warningLeadHours + 3), roadOpenPct: Math.min(100, base.roadOpenPct + 20), shelterCapacity: Math.min(200000, Math.round(base.shelterCapacity * 1.25)) },
+    },
+  ]
+  return cases.map((item) => ({ ...item, result: item.id === 'configured' ? result : evaluateScenario(item.input) }))
+}
+
 export function scenarioComparisonRows(current, baseline) {
   const fields = [
     ['时间窗', 'horizonHours', '小时'], ['24 小时雨量', 'rainMm24', 'mm'],
@@ -104,6 +122,7 @@ export function scenarioComparisonRows(current, baseline) {
 
 export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = null, comparison = null, reviewNotes = '', checks = [], createdAt, startBjt = '' }) {
   const { input, behaviour } = result
+  const sensitivity = behaviorSensitivityCases(result)
   const lines = [
     `# ${cityName} · ${name || '桌面推演'}预案草案`, '',
     `- 编制时间：${createdAt}`, '- 状态：草案 / 待人工复核',
@@ -127,6 +146,10 @@ export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = n
     `- 核查优先级：${result.priority}（压力指标 ${result.pressure}/${result.pressureMax}；非风险概率）`,
     ...behaviour.map((item) => `- ${item.label}：${item.count} 人（假设分流）`),
     `- 假设避险容量缺口：${result.capacityGap} 人；道路可达缺口：${result.accessGap} 人`, '',
+    '## 居民响应条件敏感性（非统计置信区间）', '',
+    '- 固定上述天气、潮河、排水和假设人群；仅改变预警提前量（±3 小时）、道路可用比例（±20 个百分点）和避险点容量（×0.75 / ×1.25），越界值按输入范围截断。以下是三个指定条件的规则结果，不覆盖真实行为不确定性的全部来源。',
+    ...sensitivity.map(({ label, input: caseInput, result: caseResult }) => `- ${label}：提前 ${caseInput.warningLeadHours} 小时、道路 ${caseInput.roadOpenPct}%、容量 ${caseInput.shelterCapacity} 人；${caseResult.behaviour.map((item) => `${item.label} ${item.count} 人`).join('；')}；容量缺口 ${caseResult.capacityGap} 人、道路可达缺口 ${caseResult.accessGap} 人。`),
+    '- 尚无居民调查、行为校准或点位影响真值；这些数字不能解释为可信区间、实际转移人数或官方行动建议。', '',
     ...(comparison ? ['## 情景对照', '', `- 对照：${comparison.name}（同为模拟情景）`, `- 对照降雨来源：${comparison.weatherDriver ? `ECMWF 模式格点，起报 ${comparison.weatherDriver.modelRunAt}` : '人工假设'}`, `- 对照起算：${comparison.startBjt ? `${comparison.startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`, ...scenarioComparisonRows(result, comparison.result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`), ''] : []),
     '## 待核查事项', '', ...checks.map((item) => `- [ ] ${item}`), '',
     '## 编制备注与审批', '', reviewNotes || '（待填写）', '',
