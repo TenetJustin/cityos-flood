@@ -24,7 +24,7 @@ export const ZHEJIANG_SOURCES = [
 
 export const ZHEJIANG_EVENTS = [
   { id: 'meihua-2022', year: '2022', title: '台风“梅花”', type: '台风 / 复盘资料', city: 'ningbo', grade: 'D · 资料登记', source: '宁波市鄞州区姜山镇防御复盘', url: 'https://www.nbyz.gov.cn/art/2022/9/23/art_1229109350_59191168.html', note: '事后复盘；不作为当时可获得的预报或点位真值。' },
-  { id: 'infa-2021', year: '2021', title: '台风“烟花”', type: '台风 / 求助报道', city: 'ningbo', grade: 'D · 资料登记', source: '宁波 12345 求助报道', url: 'http://cxnews.cnnb.com.cn/system/2021/07/27/012251035.shtml', note: '聚合报道；不推断个体居民行为。' },
+  { id: 'infa-2021', year: '2021', title: '台风“烟花”', type: '台风 / 事后官方汇总', city: 'ningbo', grade: 'D · 事后记录', source: '奉化区政府通报', url: 'https://www.fh.gov.cn/art/2021/7/29/art_1229045201_59057535.html', note: '政府通报称截至 7 月 27 日 11 时转移 69,299 人、清除 25 处积水点；属事后汇总，与下方 7 月环境资料对照，仅作背景，不是逐人反应或积水真值。' },
 ]
 
 export const CITY_CHECKS = {

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { scenarioAssessment, ZHEJIANG_CITIES, ZHEJIANG_SOURCES } from '../src/zhejiangData.js'
+import { scenarioAssessment, ZHEJIANG_CITIES, ZHEJIANG_EVENTS, ZHEJIANG_SOURCES } from '../src/zhejiangData.js'
 import { assessZhejiangSnapshot, normalizeZhejiangMetars, unavailableZhejiangSnapshot } from '../src/zhejiangObservations.js'
 
 test('Zhejiang scope contains four distinct cities and source leads retain access status', () => {
@@ -29,6 +29,14 @@ test('scenario rule responds to compound assumptions without returning a flood p
   const compound = scenarioAssessment({ rain: 100, tide: 'high', river: 'high', drainage: 'reduced' })
   assert.equal(compound.label, '优先核查')
   assert.equal('probability' in compound, false)
+})
+
+test('2021 In-Fa event cites an official retrospective and keeps aggregate impacts out of resident truth', () => {
+  const event = ZHEJIANG_EVENTS.find(({ id }) => id === 'infa-2021')
+  assert.equal(event.url, 'https://www.fh.gov.cn/art/2021/7/29/art_1229045201_59057535.html')
+  assert.equal(event.grade, 'D · 事后记录')
+  assert.match(event.note, /69,299 人.*25 处积水点/)
+  assert.match(event.note, /不.*逐人反应或积水真值/)
 })
 
 test('four-city airport adapter preserves missing stations and observation time', () => {
