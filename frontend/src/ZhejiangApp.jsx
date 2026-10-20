@@ -47,7 +47,7 @@ function cityState(observations, cityId) {
 }
 
 function Mark({ tone = 'muted', children }) { return <span className={`zo-mark zo-mark-${tone}`}>{children}</span> }
-function LogoMark() { return <span className="zo-logo-glyph"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt=""/></span> }
+function LogoMark() { return <span className="zo-logo-glyph"><img src={`${import.meta.env.BASE_URL}cityos-logo.png`} alt=""/></span> }
 function Arrow() { return <span aria-hidden="true">↗</span> }
 function Card({ children, className = '' }) { return <section className={`zo-card ${className}`}>{children}</section> }
 function SectionTitle({ kicker, title, trailing }) { return <div className="zo-section-title"><div><small>{kicker}</small><h2>{title}</h2></div>{trailing}</div> }
