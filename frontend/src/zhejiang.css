@@ -258,6 +258,20 @@ body,.zo-not-found{background:var(--cityos-paper)}
 .zo-research-steps strong{display:block;font-size:11px;margin-top:6px}
 .zo-research-steps p{font-size:9px;line-height:1.6;color:#66788e;margin:5px 0 0}
 .zo-research-steps>i{font-style:normal;color:#8ea1b7}
+
+/* Keep the landing hero within a normal desktop viewport; workflow follows below it. */
+@media(min-width:961px){
+  .zo-landing-main{box-sizing:border-box;min-height:calc(100vh - 90px);grid-template-columns:minmax(350px,41%) minmax(0,59%);align-items:center;padding-top:clamp(16px,2.5vh,24px);padding-bottom:clamp(16px,2.5vh,24px);gap:clamp(24px,3vw,42px)}
+  .zo-landing-copy{padding:0}
+  .zo-landing-copy h1{font-size:clamp(42px,4vw,58px);line-height:1.12;margin:15px 0 12px}
+  .zo-landing-copy>p{font-size:12px;line-height:1.65;margin-bottom:18px}
+  .zo-landing-cities{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;margin-top:22px}
+  .zo-landing-cities>.zo-small-label{grid-column:1/-1;margin:10px 0 5px}
+  .zo-landing-cities a{min-height:38px;grid-template-columns:30px 1fr auto}
+  .zo-landing-visual{height:min(65vh,620px);min-height:360px}
+  .zo-landing-visual .zo-map{height:100%}
+  .zo-research-flow{box-sizing:border-box;width:calc(100% - clamp(48px,8.8vw,156px));max-width:1444px;margin:22px auto 24px}
+}
 .zo-impact-page,.zo-history-replay{display:grid;gap:14px}
 .zo-decision-page{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:14px;align-items:start}
 .zo-decision-page>.zo-card:first-child{padding:20px}

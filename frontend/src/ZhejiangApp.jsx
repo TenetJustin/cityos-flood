@@ -129,12 +129,17 @@ function downloadWorkbenchSummary(city, section) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+function ResearchFlow() {
+  return <Card className="zo-research-flow"><SectionTitle kicker="WORKFLOW / 研究流程" title="从多源数据到可复核建议"/><div className="zo-research-steps"><article><b>01</b><strong>接入与质控</strong><p>统一观测时间、实际可获得时间、空间基准、单位、许可、质量和缺失标记。</p></article><i>→</i><article><b>02</b><strong>复合致涝分析</strong><p>关联台风、降雨、潮位、河网与城市地形；城市参数分别维护。</p></article><i>→</i><article><b>03</b><strong>影响评估</strong><p>叠加人群、道路和重点设施，区分观测事实与模型推断。</p></article><i>→</i><article><b>04</b><strong>情景与建议</strong><p>回放历史事件、比较假设情景，形成待人工复核的建议。</p></article></div></Card>
+}
+
 function Landing() {
   const navigate = useNavigate()
   return <div className="zo-landing">
     <header className="zo-landing-header"><div className="zo-logo"><LogoMark/><strong><span>City</span><span className="zo-logo-os">OS</span></strong><span className="zo-logo-sub">ZHEJIANG</span></div><div className="zo-header-right"><Mark tone="mint">研究工作台</Mark><Link to="/about">说明 <Arrow/></Link></div></header>
     <main className="zo-landing-main"><div className="zo-landing-copy"><div className="zo-kicker"><span className="zo-live-dot"/> CITY OPERATING SYSTEM / ZHEJIANG</div><h1>浙江台风与<br/>城市内涝<span>世界模型</span></h1><p>四城态势、历史事件、情景预演与决策建议，汇于一处。</p><Link className="zo-primary" to="/workbench">进入工作台 <span>↗</span></Link><div className="zo-landing-cities"><span className="zo-small-label">选择城市</span>{ZHEJIANG_CITIES.map((city, index) => <Link key={city.id} to={cityPath(city.id)}><span>0{index + 1}</span><strong>{city.name}</strong><span className="zo-city-chevron">↗</span></Link>)}</div></div>
       <div className="zo-landing-visual"><ProvinceMap onCity={(id) => navigate(cityPath(id))} landing/><div className="zo-map-overlay"><span>研究范围</span><strong>宁波 · 台州 · 温州 · 杭州</strong><small>点击地图标记进入城市工作台</small></div></div></main>
+    <ResearchFlow/>
     <footer className="zo-landing-footer"><span>CityOS · 浙江城市韧性工作台</span><span>宁波 · 台州 · 温州 · 杭州</span><span>Asia/Shanghai · <Link to="/about/product">产品说明</Link></span></footer>
   </div>
 }
@@ -180,7 +185,6 @@ function Overview({ city, onCity }) {
         <Card className="zo-decision-preview"><SectionTitle kicker="DECISION / 首要建议" title="决策建议"/><div className="zo-initial-advice"><Mark tone="blue">初步分析</Mark><p>{city ? `${city.name}当前无可核验的城区积水风险输出。建议按常态监测，并优先核实短时雨量、河网/潮位和低洼点现场信息。` : '四城均缺少可核验的城区积水风险输出。建议保持常态监测，并优先补核降雨、水位与低洼点现场信息。'}</p></div><div className="zo-action-preview"><span>需要人工复核</span>{checks.slice(0, 2).map((item) => <div key={item}>· {item}</div>)}</div><Link className="zo-text-link" to={cityPath(city?.id || 'ningbo', 'impact')}>查看建议措施与复核清单 →</Link></Card>
       </aside>
     </div>
-    <Card className="zo-research-flow"><SectionTitle kicker="WORKFLOW / 研究流程" title="从多源数据到可复核建议"/><div className="zo-research-steps"><article><b>01</b><strong>接入与质控</strong><p>统一观测时间、实际可获得时间、空间基准、单位、许可、质量和缺失标记。</p></article><i>→</i><article><b>02</b><strong>复合致涝分析</strong><p>关联台风、降雨、潮位、河网与城市地形；城市参数分别维护。</p></article><i>→</i><article><b>03</b><strong>影响评估</strong><p>叠加人群、道路和重点设施，区分观测事实与模型推断。</p></article><i>→</i><article><b>04</b><strong>情景与建议</strong><p>回放历史事件、比较假设情景，形成待人工复核的建议。</p></article></div></Card>
   </>
 }
 
