@@ -13,7 +13,7 @@ const sections = ['points', 'impact', 'decision', 'events', 'scenario', 'data']
 const routes = [
   'workbench',
   ...ZHEJIANG_CITIES.flatMap(({ id }) => [`workbench/${id}`, ...sections.map((section) => `workbench/${id}/${section}`)]),
-  'about', 'overview', 'cities',
+  'about', 'about/product', 'welcome', 'overview', 'cities',
 ]
 
 for (const route of routes) {

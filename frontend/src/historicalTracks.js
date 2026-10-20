@@ -30,6 +30,10 @@ export function nearbyTracks(snapshot, cityId) {
   return cityId ? snapshot.tracks.filter((track) => typeof track.city_min_km?.[cityId] === 'number' && track.city_min_km[cityId] <= snapshot.screening.city_center_near_km) : snapshot.tracks
 }
 
+export function tracksForYear(snapshot, cityId, year) {
+  return nearbyTracks(snapshot, cityId).filter((track) => !year || track.points.some((point) => point.time_utc.slice(0, 4) === String(year)))
+}
+
 export function trackSegments(points, maxGapHours = 12) {
   const segments = []
   let previous = null

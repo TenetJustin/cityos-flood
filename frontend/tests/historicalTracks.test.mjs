@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { assessTrackSnapshot, nearbyTracks, trackSegments } from '../src/historicalTracks.js'
+import { assessTrackSnapshot, nearbyTracks, trackSegments, tracksForYear } from '../src/historicalTracks.js'
 
 const snapshotPath = new URL('../public/data/zhejiang-track-candidates.json', import.meta.url)
 
@@ -19,6 +19,9 @@ test('checked-in NOAA-derived index passes structural and provenance checks', as
     assert.ok(matches.length > 0, `${cityId} should have historical path candidates`)
     assert.ok(matches.every((track) => track.city_min_km[cityId] <= snapshot.screening.city_center_near_km))
   }
+  const firstYear = Number(snapshot.tracks[0].points[0].time_utc.slice(0, 4))
+  assert.ok(tracksForYear(snapshot, 'ningbo', firstYear).every((track) => track.points.some((point) => point.time_utc.startsWith(String(firstYear)))))
+  assert.deepEqual(tracksForYear(snapshot, 'ningbo', '1900'), [])
 })
 
 test('tampered track classification and geometry fail closed', async () => {

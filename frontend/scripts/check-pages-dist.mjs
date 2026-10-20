@@ -24,7 +24,7 @@ for (const city of ZHEJIANG_CITIES) {
     assert.equal(await read(`${route}/index.html`), html, `${route} deep link differs from root`)
   }
 }
-for (const route of ['workbench', 'about']) assert.equal(await read(`${route}/index.html`), html)
+for (const route of ['workbench', 'about', 'about/product', 'welcome']) assert.equal(await read(`${route}/index.html`), html)
 
 const observations = await json('zhejiang-observations.json')
 assert.equal(assessZhejiangSnapshot(observations).valid, true, 'airport snapshot malformed')
