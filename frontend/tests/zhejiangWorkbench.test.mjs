@@ -8,6 +8,13 @@ test('Zhejiang scope contains four distinct cities and source leads retain acces
   assert.equal(new Set(ZHEJIANG_CITIES.map(({ id }) => id)).size, 4)
   assert.ok(ZHEJIANG_SOURCES.every((source) => source.url && source.publisher && source.access && source.license))
   assert.equal(ZHEJIANG_SOURCES.filter((source) => source.access === '已接入公开快照').length, 1)
+  const rainArchive = ZHEJIANG_SOURCES.find(({ id }) => id === 'wz-rain-history')
+  const riverArchive = ZHEJIANG_SOURCES.find(({ id }) => id === 'wz-river-history')
+  assert.match(rainArchive.access, /未接入模型/)
+  assert.match(rainArchive.coverage, /800,000.*221.*2023-09-01.*09-14/)
+  assert.match(riverArchive.access, /未接入模型/)
+  assert.match(riverArchive.coverage, /263.*2015-08-19.*2019-09-23/)
+  assert.match(riverArchive.note, /779\.51/)
 })
 
 test('scenario rule responds to compound assumptions without returning a flood probability', () => {
