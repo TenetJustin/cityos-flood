@@ -159,7 +159,7 @@ function TerrainScene({ frame, cityName }) {
       const col = (index * 5 + 2) % 10, row = Math.floor(index * 1.8 + 2) % 10
       return <span key={`water-${index}`} className="zv-fallback-water" style={{ left: `${6 + col * 8.7}%`, top: `${8 + row * 8.3}%`, opacity: .4 + frame.stress * .52 }}/>
     })}</div><span className="zv-fallback-axis">合成地形 / 示意模型</span>
-  </div>}<div className="zv-scene-overlay"><span>3D TERRAIN LAB</span><strong>{cityName} · 参数化场景</strong></div><div className="zv-scene-legend"><i/>情景水面 <i className="building"/>合成建筑</div><div className="zv-scene-instructions">拖动旋转 · 滚轮缩放</div></div>
+  </div>}<div className="zv-scene-overlay"><span>3D TERRAIN LAB</span><strong>{cityName} · 参数化场景</strong></div><div className="zv-scene-legend"><i/>情景水面 <i className="building"/>合成建筑</div><div className="zv-scene-instructions">雨量与边界参数驱动水面变化</div></div>
 }
 
 function Field({ label, value, min, max, unit, onChange }) {
