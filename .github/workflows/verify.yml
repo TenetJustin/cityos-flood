@@ -42,5 +42,6 @@ jobs:
           VITE_STATIC_PAGES: 'true'
           VITE_BASE_PATH: /cityos-flood/
         run: |
+          node scripts/fetch-zhejiang-observations.mjs
           npm run build:pages
           npm run check:pages
