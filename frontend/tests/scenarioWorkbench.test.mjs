@@ -79,6 +79,25 @@ test('draft plan carries assumptions, provenance boundary and approval gates', (
   assert.match(markdown, /尚无居民调查、行为校准或点位影响真值/)
 })
 
+test('draft plan records every selected scenario in a multi-case comparison set', () => {
+  const current = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 120, peakMmHour: 30 })
+  const dry = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 25, peakMmHour: 10, tideState: 'normal' })
+  const compound = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 220, peakMmHour: 75, tideState: 'high', riverState: 'elevated' })
+  const markdown = scenarioPlanMarkdown({
+    cityName: '宁波', name: '三案方案集', result: current,
+    comparisons: [
+      { name: '低雨量基线', startBjt: '2026-10-20T12:00', result: dry },
+      { name: '潮河复合高值', startBjt: '2026-10-20T12:00', result: compound },
+    ],
+    createdAt: '2026-10-20 12:00',
+  })
+  assert.match(markdown, /## 多情景对照（各方案均为模拟情景）/)
+  assert.match(markdown, /### 低雨量基线/)
+  assert.match(markdown, /### 潮河复合高值/)
+  assert.match(markdown, /当前方案 120 mm；本方案 25 mm/)
+  assert.match(markdown, /当前方案 120 mm；本方案 220 mm/)
+})
+
 test('imported ECMWF driver remains distinct from human peak and flood-model claims in plan', () => {
   const driver = { rawRainMm24: 2.4, rainMm24: 2.4, startAt: '2026-10-20T06:00:00Z', endAt: '2026-10-21T06:00:00Z', modelRunAt: '2026-10-19T06:00:00Z', availableAt: '2026-10-19T19:31:00Z', gridDistanceKm: 5, sourceSha256: 'a'.repeat(64), sourceUrl: 'https://www.ecmwf.int/en/forecasts/datasets/open-data' }
   const result = evaluateScenario({ ...SCENARIO_DEFAULTS, rainMm24: 2.4, peakMmHour: 1 })

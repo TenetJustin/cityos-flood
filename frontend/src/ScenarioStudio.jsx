@@ -88,9 +88,15 @@ function saveMarkdown(name, content) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function ScenarioCompare({ current, comparison }) {
-  if (!comparison) return <p className="zs-muted">保存多个同城条件后，可比对输入、核查压力与假设避险容量缺口。</p>
-  return <><div className="zs-compare"><div><span>当前</span><strong>{current.priority}</strong><small>{current.pressure}/{current.pressureMax} 压力指标</small></div><div><span>对照 · {comparison.entry.name}</span><strong>{comparison.result.priority}</strong><small>{comparison.result.pressure}/{comparison.result.pressureMax} 压力指标</small></div></div><div className="zs-table-scroll"><table className="zs-table"><thead><tr><th>维度</th><th>当前</th><th>对照</th></tr></thead><tbody>{scenarioComparisonRows(current, comparison.result).map((row) => <tr key={row.label}><th>{row.label}</th><td>{row.current}</td><td>{row.baseline}</td></tr>)}</tbody></table></div></>
+function ScenarioCompare({ current, comparisons }) {
+  if (!comparisons.length) return <p className="zs-muted">保存多个同城条件后，可加入本轮方案集，横向比较环境假设、核查压力和居民分流结果。</p>
+  const rows = scenarioComparisonRows(current, comparisons[0].result).map((row, index) => ({ label: row.label, values: [row.current, ...comparisons.map((item) => scenarioComparisonRows(current, item.result)[index].baseline)] }))
+  const cases = [{ name: '当前方案', result: current }, ...comparisons.map((item) => ({ name: item.entry.name, result: item.result }))]
+  const populationScale = Math.max(1, ...cases.map((item) => item.result.input.exposedPeople))
+  return <><div className="zs-compare"><div><span>当前方案</span><strong>{current.priority}</strong><small>{current.pressure}/{current.pressureMax} 压力指标</small></div>{comparisons.map((item) => <div key={item.entry.id}><span>{item.entry.name}</span><strong>{item.result.priority}</strong><small>{item.result.pressure}/{item.result.pressureMax} 压力指标</small></div>)}</div>
+    <div className="zs-table-scroll"><table className="zs-table"><thead><tr><th>维度</th>{cases.map((item, index) => <th key={`${item.name}-${index}`}>{item.name}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.label}><th>{row.label}</th>{row.values.map((value, index) => <td key={`${row.label}-${index}`}>{value}</td>)}</tr>)}</tbody></table></div>
+    <div className="zs-matrix-flow"><strong>居民规则分流 · 多方案同尺度对照</strong><div className="zs-matrix-legend">{current.behaviour.map((item) => <span key={item.id}><i style={{ backgroundColor: item.color }}/>{item.label}</span>)}</div>{cases.map((item, index) => <div className="zs-matrix-row" key={`${item.name}-${index}`}><span>{item.name}</span><div className="zs-sensitivity-bar" role="img" aria-label={`${item.name}：${item.result.behaviour.map((part) => `${part.label} ${part.count} 人`).join('，')}`}>{item.result.behaviour.map((part) => <i key={part.id} style={{ width: `${part.count / populationScale * 100}%`, backgroundColor: part.color }}/>)}</div><small>{item.result.behaviour.map((part) => `${part.label} ${part.count}`).join(' · ')}</small></div>)}<p className="zs-muted">横向比例采用方案集中最大的假设人群数作为共同分母；属于规则情景演练，不是居民实测或行为概率预测。</p></div>
+  </>
 }
 
 function ForecastDriverPicker({ cityId, onImport }) {
@@ -131,7 +137,7 @@ export function ScenarioStudio({ city }) {
   const [error, setError] = useState('')
   const [scenarioStore, setScenarioStore] = useState(() => readScenarioState(localStorage))
   const saved = scenarioStore.records
-  const [compareId, setCompareId] = useState('')
+  const [compareIds, setCompareIds] = useState([])
   const [notes, setNotes] = useState('')
   const [draftStore, setDraftStore] = useState(() => readDraftState(localStorage))
   const [draftId, setDraftId] = useState('')
@@ -140,17 +146,16 @@ export function ScenarioStudio({ city }) {
   const [importNote, setImportNote] = useState('')
   const [clock, setClock] = useState(Date.now)
   useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 60_000); return () => clearInterval(timer) }, [])
-  useEffect(() => { setInput({ ...SCENARIO_DEFAULTS }); setStartBjt(beijingLocalNow()); setResult(null); setCompareId(''); setDraftId(''); setWeatherDriver(null); setImportNote(''); setNotes(readStored(DRAFT_KEY)?.[city.id] || '') }, [city.id])
+  useEffect(() => { setInput({ ...SCENARIO_DEFAULTS }); setStartBjt(beijingLocalNow()); setResult(null); setCompareIds([]); setDraftId(''); setWeatherDriver(null); setImportNote(''); setNotes(readStored(DRAFT_KEY)?.[city.id] || '') }, [city.id])
   const citySaved = saved.filter((item) => item.cityId === city.id && item.modelVersion === SCENARIO_MODEL_VERSION)
+  const comparisonChoices = citySaved.slice(-5)
   const cityDrafts = draftStore.records.filter((item) => item.cityId === city.id)
   const draftRecord = cityDrafts.find((item) => item.id === draftId) || cityDrafts.at(-1)
   const draft = draftRecord?.markdown || ''
   const activeWeatherIssue = weatherDriverIssue(weatherDriver, city.id, input, startBjt, clock)
-  const comparison = useMemo(() => {
-    const entry = citySaved.find((item) => item.id === compareId)
-    if (!entry) return null
-    try { return { entry, result: evaluateScenario(entry.input) } } catch { return null }
-  }, [saved, compareId, city.id])
+  const comparisons = useMemo(() => comparisonChoices.filter((item) => compareIds.includes(item.id)).flatMap((entry) => {
+    try { return [{ entry, result: evaluateScenario(entry.input) }] } catch { return [] }
+  }), [saved, compareIds, city.id])
   const change = (key, value) => { setInput((current) => ({ ...current, [key]: value })); if (key === 'rainMm24' || key === 'horizonHours') { setWeatherDriver(null); setImportNote('修改降雨或时间窗后，已解除 ECMWF 来源绑定。') } setResult(null); setError('') }
   const importForecast = (window) => {
     setInput((current) => ({ ...current, hazard: 'other_rain', horizonHours: 24, rainMm24: String(window.rainMm24), peakMmHour: '' }))
@@ -173,14 +178,14 @@ export function ScenarioStudio({ city }) {
     const record = { id: crypto.randomUUID(), cityId: city.id, name: name.trim().slice(0, 80) || '未命名情景', startBjt, modelVersion: result.modelVersion, input: result.input, weatherDriver, createdAt: new Date().toISOString() }
     const next = [...saved, record]
     setScenarioStore({ ...scenarioStore, records: next })
-    if (!compareId && citySaved.length) setCompareId(citySaved.at(-1).id)
+    if (compareIds.length === 0 && citySaved.length) setCompareIds([citySaved.at(-1).id])
     setStorageWarning(scenarioStore.writable && persistScenarios(localStorage, next) ? '' : scenarioStore.issue || '浏览器无法持久保存情景；本次会话仍可比较并下载草案。')
   }
   const generate = () => {
     if (!result) return
     const provenanceIssue = weatherDriverIssue(weatherDriver, city.id, result.input, startBjt, Date.now())
     if (provenanceIssue) { setError(provenanceIssue); return }
-    const text = scenarioPlanMarkdown({ cityName: city.name, name: name.trim(), startBjt, result, weatherDriver, comparison: comparison ? { name: comparison.entry.name, startBjt: comparison.entry.startBjt, result: comparison.result, weatherDriver: comparison.entry.weatherDriver || null } : null, reviewNotes: notes.trim(), checks: CITY_CHECKS[city.id], createdAt: new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) })
+    const text = scenarioPlanMarkdown({ cityName: city.name, name: name.trim(), startBjt, result, weatherDriver, comparisons: comparisons.map((item) => ({ name: item.entry.name, startBjt: item.entry.startBjt, result: item.result, weatherDriver: item.entry.weatherDriver || null })), reviewNotes: notes.trim(), checks: CITY_CHECKS[city.id], createdAt: new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', dateStyle: 'medium', timeStyle: 'short' }).format(new Date()) })
     const now = new Date().toISOString()
     const record = { id: crypto.randomUUID(), cityId: city.id, name: name.trim().slice(0, 80) || '未命名情景', startBjt, modelVersion: result.modelVersion, evidenceType: 'simulated_scenario', input: result.input, markdown: text, createdAt: now, updatedAt: now }
     const next = upsertDraft(draftStore.records, record)
@@ -204,8 +209,8 @@ export function ScenarioStudio({ city }) {
       <div className="zs-subhead">居民与资源假设</div><div className="zs-grid"><Field label="假设暴露人群" unit="人" min="0" max="200000" value={input.exposedPeople} onChange={(v) => number('exposedPeople', v)}/><Field label="预警提前量" unit="小时" min="0" max="72" value={input.warningLeadHours} onChange={(v) => number('warningLeadHours', v)}/><Field label="道路可用比例" unit="%" min="0" max="100" value={input.roadOpenPct} onChange={(v) => number('roadOpenPct', v)}/><Field label="避险点假设容量" unit="人" min="0" max="200000" value={input.shelterCapacity} onChange={(v) => number('shelterCapacity', v)}/><Field label="需协助比例假设" unit="%" min="0" max="100" value={input.assistanceNeedPct} onChange={(v) => number('assistanceNeedPct', v)}/></div>
       <div className="zs-actions"><button type="button" className="zo-primary" onClick={run}>运行桌面推演 ↗</button><button type="button" className="zs-secondary" onClick={() => { setInput({ ...SCENARIO_DEFAULTS }); setWeatherDriver(null); setImportNote(''); setResult(null); setError('') }}>重置参数</button></div>{error && <p className="zs-error" role="alert">输入无效：{error}</p>}{activeWeatherIssue && <p className="zs-error" role="status">已导入降雨不能继续使用：{activeWeatherIssue}</p>}
     </section>
-    {result && <><div className="zs-result-grid"><section className="zo-card"><div className="zs-heading"><div><small>RULE OUTPUT / 核查压力</small><h2>{result.priority}</h2></div><span className="zs-tag">规则版本 {result.modelVersion}</span></div><p className="zs-muted">压力指标 {result.pressure} / {result.pressureMax}，只用于同类桌面情景比较；不是内涝概率或四级风险等级。24 小时雨量来源：{weatherDriver ? `ECMWF 模型格点（${weatherDriver.rawRainMm24.toFixed(3)} mm，输入精度 0.1 mm）` : '人工假设'}；其他驱动仍为假设。</p>{result.drivers.map((driver) => <div className="zs-driver" key={driver.name}><span>{driver.name}</span><div className="zs-track"><i style={{ width: `${driver.points / driver.max * 100}%` }}/></div><b>{driver.points}/{driver.max}</b></div>)}</section><section className="zo-card"><div className="zs-heading"><div><small>COMPARE / 保存与对照</small><h2>同城情景比较</h2></div></div><button type="button" className="zs-secondary" disabled={Boolean(activeWeatherIssue)} onClick={save}>保存当前情景到本机</button><label className="zs-field zs-compare-select"><span>选择一个已保存情景</span><select value={compareId} onChange={(event) => setCompareId(event.target.value)}><option value="">暂不比较</option>{citySaved.map((item) => <option key={item.id} value={item.id}>{item.name} · {new Date(item.createdAt).toLocaleDateString('zh-CN')}</option>)}</select></label><ScenarioCompare current={result} comparison={comparison}/>{(storageWarning || scenarioStore.issue) && <p className="zs-error" role="status">{storageWarning || scenarioStore.issue}</p>}<p className="zs-muted">保存在当前浏览器，不同步、不构成正式历史事件。</p></section></div>
-      <section className="zo-card"><div className="zs-heading"><div><small>BEHAVIOUR / 可视化</small><h2>假设居民流向</h2></div><span className="zs-tag">非真实人数</span></div><BehaviorFlow result={result}/><BehaviorSensitivity result={result}/>{comparison && <p className="zs-muted">对照情景：进入避险点 {comparison.result.behaviour.find((item) => item.id === 'refuge').count} 人；当前情景 {result.behaviour.find((item) => item.id === 'refuge').count} 人。均为规则假设。</p>}{(result.capacityGap > 0 || result.accessGap > 0) && <p className="zs-callout">假设容量缺口 {result.capacityGap} 人、道路可达缺口 {result.accessGap} 人；需核对真实容量、开放状态及路网。</p>}</section>
+    {result && <><div className="zs-result-grid"><section className="zo-card"><div className="zs-heading"><div><small>RULE OUTPUT / 核查压力</small><h2>{result.priority}</h2></div><span className="zs-tag">规则版本 {result.modelVersion}</span></div><p className="zs-muted">压力指标 {result.pressure} / {result.pressureMax}，只用于同类桌面情景比较；不是内涝概率或四级风险等级。24 小时雨量来源：{weatherDriver ? `ECMWF 模型格点（${weatherDriver.rawRainMm24.toFixed(3)} mm，输入精度 0.1 mm）` : '人工假设'}；其他驱动仍为假设。</p>{result.drivers.map((driver) => <div className="zs-driver" key={driver.name}><span>{driver.name}</span><div className="zs-track"><i style={{ width: `${driver.points / driver.max * 100}%` }}/></div><b>{driver.points}/{driver.max}</b></div>)}</section><section className="zo-card"><div className="zs-heading"><div><small>COMPARE / 保存与对照</small><h2>方案集比较</h2></div></div><button type="button" className="zs-secondary" disabled={Boolean(activeWeatherIssue)} onClick={save}>保存当前情景到本机</button><div className="zs-saved-choices"><span>加入本轮方案集（最多 5 个已保存方案）</span>{citySaved.length ? citySaved.slice(-5).map((item) => <label key={item.id}><input type="checkbox" checked={compareIds.includes(item.id)} onChange={(event) => setCompareIds((ids) => event.target.checked ? [...ids.filter((id) => id !== item.id), item.id].slice(-5) : ids.filter((id) => id !== item.id))}/><span>{item.name}<small>{new Date(item.createdAt).toLocaleDateString('zh-CN')}</small></span></label>) : <small>先调整参数并保存多个同城情景，即可组建比较方案集。</small>}</div><ScenarioCompare current={result} comparisons={comparisons}/>{(storageWarning || scenarioStore.issue) && <p className="zs-error" role="status">{storageWarning || scenarioStore.issue}</p>}<p className="zs-muted">本机保存，不同步、不构成正式历史事件；生成预案草案时会写入已选对照方案。</p></section></div>
+      <section className="zo-card"><div className="zs-heading"><div><small>BEHAVIOUR / 可视化</small><h2>假设居民流向</h2></div><span className="zs-tag">非真实人数</span></div><BehaviorFlow result={result}/><BehaviorSensitivity result={result}/>{comparisons.length > 0 && <p className="zs-muted">方案集包含 {comparisons.length} 个已保存对照；全部输入、规则结果与居民分流图均在对照中呈现，并会进入草案。</p>}{(result.capacityGap > 0 || result.accessGap > 0) && <p className="zs-callout">假设容量缺口 {result.capacityGap} 人、道路可达缺口 {result.accessGap} 人；需核对真实容量、开放状态及路网。</p>}</section>
     </>}
     <section className="zo-card"><div className="zs-heading"><div><small>PLAN / 人工编制</small><h2>预案草案</h2></div><span className="zs-tag">待复核</span></div><p className="zs-muted">每次生成都会新建本机草案；手工编辑不会随情景参数改变而被清除。草案可恢复和下载，但不写入部门系统，也不自动成为正式预案。</p><label className="zs-field"><span>编制备注、责任人和现场核查记录</span><textarea rows="4" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="填写需核验的点位、来源和责任人；不要录入个人敏感信息。"/></label><div className="zs-actions"><button type="button" className="zo-primary" disabled={!result || Boolean(activeWeatherIssue)} onClick={generate}>生成新草案 ↗</button>{draftRecord && <button type="button" className="zs-secondary" onClick={() => saveMarkdown(`${city.name}-${draftRecord.name}`, draft)}>下载 .md</button>}</div>{cityDrafts.length > 0 && <label className="zs-field zs-compare-select"><span>本机草案存档</span><select value={draftRecord?.id || ''} onChange={(event) => setDraftId(event.target.value)}>{cityDrafts.map((item) => <option key={item.id} value={item.id}>{item.name} · {new Date(item.updatedAt).toLocaleString('zh-CN')}</option>)}</select></label>}{draftRecord && <><p className="zs-muted">此草案记录的是生成时的情景快照；更改当前参数不会自动改写。规则版本 {draftRecord.modelVersion} · 更新 {beijingDisplay(draftRecord.updatedAt)}</p><textarea className="zs-plan-preview" aria-label="预案草案正文，可编辑并保存在本机" rows="18" maxLength="100000" value={draft} onChange={(event) => editDraft(event.target.value)}/></>}{(storageWarning || draftStore.issue) && <p className="zs-error" role="status">{storageWarning || draftStore.issue}</p>}</section>
   </div>

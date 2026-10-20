@@ -135,9 +135,10 @@ export function scenarioComparisonRows(current, baseline) {
   ]
 }
 
-export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = null, comparison = null, reviewNotes = '', checks = [], createdAt, startBjt = '' }) {
+export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = null, comparison = null, comparisons = [], reviewNotes = '', checks = [], createdAt, startBjt = '' }) {
   const { input, behaviour } = result
   const sensitivity = behaviorSensitivityCases(result)
+  const comparisonSet = comparisons.length ? comparisons : comparison ? [comparison] : []
   const lines = [
     `# ${cityName} · ${name || '桌面推演'}预案草案`, '',
     `- 编制时间：${createdAt}`, '- 状态：草案 / 待人工复核',
@@ -165,7 +166,23 @@ export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = n
     '- 固定上述天气、潮河、排水和假设人群；仅改变预警提前量（±3 小时）、道路可用比例（±20 个百分点）和避险点容量（×0.75 / ×1.25），越界值按输入范围截断。以下是三个指定条件的规则结果，不覆盖真实行为不确定性的全部来源。',
     ...sensitivity.map(({ label, input: caseInput, result: caseResult }) => `- ${label}：提前 ${caseInput.warningLeadHours} 小时、道路 ${caseInput.roadOpenPct}%、容量 ${caseInput.shelterCapacity} 人；${caseResult.behaviour.map((item) => `${item.label} ${item.count} 人`).join('；')}；容量缺口 ${caseResult.capacityGap} 人、道路可达缺口 ${caseResult.accessGap} 人。`),
     '- 尚无居民调查、行为校准或点位影响真值；这些数字不能解释为可信区间、实际转移人数或官方行动建议。', '',
-    ...(comparison ? ['## 情景对照', '', `- 对照：${comparison.name}（同为模拟情景）`, `- 对照降雨来源：${comparison.weatherDriver ? `ECMWF 模式格点，起报 ${comparison.weatherDriver.modelRunAt}` : '人工假设'}`, `- 对照起算：${comparison.startBjt ? `${comparison.startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`, ...scenarioComparisonRows(result, comparison.result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`), ''] : []),
+    ...(comparisonSet.length === 1 ? [
+      '## 情景对照', '',
+      `- 对照：${comparisonSet[0].name}（同为模拟情景）`,
+      `- 对照降雨来源：${comparisonSet[0].weatherDriver ? `ECMWF 模式格点，起报 ${comparisonSet[0].weatherDriver.modelRunAt}` : '人工假设'}`,
+      `- 对照起算：${comparisonSet[0].startBjt ? `${comparisonSet[0].startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`,
+      ...scenarioComparisonRows(result, comparisonSet[0].result).map((row) => `- ${row.label}：当前 ${row.current}；对照 ${row.baseline}`),
+      '',
+    ] : comparisonSet.length > 1 ? [
+      '## 多情景对照（各方案均为模拟情景）', '',
+      ...comparisonSet.flatMap((item) => [
+        `### ${item.name}`,
+        `- 降雨来源：${item.weatherDriver ? `ECMWF 模式格点，起报 ${item.weatherDriver.modelRunAt}` : '人工假设'}`,
+        `- 推演起算：${item.startBjt ? `${item.startBjt.replace('T', ' ')} Asia/Shanghai` : '未保存'}`,
+        ...scenarioComparisonRows(result, item.result).map((row) => `- ${row.label}：当前方案 ${row.current}；本方案 ${row.baseline}`),
+        '',
+      ]),
+    ] : []),
     '## 待核查事项', '', ...checks.map((item) => `- [ ] ${item}`), '',
     '## 编制备注与审批', '', reviewNotes || '（待填写）', '',
     '- [ ] 核对真实雨量、潮位、河网和积水证据及时间戳',
