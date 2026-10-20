@@ -10,9 +10,11 @@ import RealEventPanel from './RealEventPanel.jsx'
 import { assessForecastSnapshot, cityForecast, forecastDisplayStatus } from './zhejiangForecast.js'
 import { activeFloodPointCount, assessRealEventSnapshot } from './realEventEvidence.js'
 import { assessZhejiangRealtimeSnapshot, zhejiangRealtimeEndpoint } from './zhejiangRealtime.js'
+import { validateDemoDataset } from './zhejiangDemoData.js'
 import './zhejiang.css'
 
 const ZhejiangVisualLab = lazy(() => import('./ZhejiangVisualLab.jsx'))
+const DemoEventPanel = lazy(() => import('./DemoEventPanel.jsx'))
 
 const cityById = (id) => ZHEJIANG_CITIES.find((city) => city.id === id)
 const time = (value) => value && Number.isFinite(Date.parse(value))
@@ -71,6 +73,19 @@ function useZhejiangRealtime() {
     const timer = setInterval(load, 60_000)
     return () => { active = false; clearInterval(timer) }
   }, [endpoint])
+  return result
+}
+
+function useDemoDataset() {
+  const [result, setResult] = useState({ state: 'loading', data: null })
+  useEffect(() => {
+    let active = true
+    fetch(`${import.meta.env.BASE_URL}data/zhejiang-demo-snapshot.json`, { cache: 'no-store' })
+      .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json() })
+      .then((data) => { if (active) { const validation = validateDemoDataset(data); setResult({ state: validation.valid ? 'ready' : 'invalid', data: validation.valid ? data : null }) } })
+      .catch(() => { if (active) setResult({ state: 'unavailable', data: null }) })
+    return () => { active = false }
+  }, [])
   return result
 }
 
@@ -193,7 +208,7 @@ const NAV = [
   ['scenario', '推演', '◈'],
 ]
 
-function Workbench({ observations, realEvents, realtime }) {
+function Workbench({ observations, realEvents, realtime, demo, demoMode, setDemoMode }) {
   const { cityId, section } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -209,17 +224,18 @@ function Workbench({ observations, realEvents, realtime }) {
   const navPath = (id) => city ? cityPath(city.id, id === 'overview' ? '' : id) : id === 'overview' ? '/workbench' : cityPath(selectedCity, id)
   return <div className="zo-shell"><a className="zo-skip" href="#zo-main">跳转至内容</a><aside className={`zo-sidebar ${menuOpen ? 'open' : ''}`}><Link className="zo-sidebar-brand" to="/"><LogoMark/><span><strong><span>City</span><span className="zo-logo-os">OS</span></strong><small>ZHEJIANG / WORKBENCH</small></span></Link><div className="zo-sidebar-label">工作空间</div><nav aria-label="工作台导航">{NAV.map(([id, label, icon]) => <NavLink key={id} end to={navPath(id)} className={activeSection === id ? 'active' : ''}><span className="zo-nav-icon">{icon}</span>{label}<span className="zo-nav-arrow">↗</span></NavLink>)}</nav><div className="zo-sidebar-bottom"><button type="button" className="zo-export-button" onClick={() => downloadWorkbenchSummary(city, NAV.find(([id]) => id === activeSection)?.[1] || '工作台')}>导出当前分析 ↧</button></div></aside>
     {menuOpen && <button className="zo-backdrop" aria-label="关闭菜单" onClick={() => setMenuOpen(false)}/>}
-    <div className="zo-content"><header className="zo-topbar"><div className="zo-top-left"><button className="zo-menu-button" type="button" aria-label="打开导航" onClick={() => setMenuOpen(true)}>☰</button><Link to="/" className="zo-top-home"><LogoMark/><span><span>City</span><span className="zo-logo-os">OS</span></span></Link><span className="zo-slash">/</span><select aria-label="选择城市" value={city?.id || 'region'} onChange={(event) => navigate(event.target.value === 'region' ? '/workbench' : cityPath(event.target.value, activeSection === 'overview' ? '' : activeSection))}><option value="region">浙江区域</option>{ZHEJIANG_CITIES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="zo-slash">/</span><strong>{NAV.find(([id]) => id === activeSection)?.[1] || '工作台'}</strong></div><div className="zo-top-right"><BeijingClock/><span className="zo-landfall-time">预计登陆 · —</span><Mark tone="muted">非公众预警</Mark><Link to="/about/product" aria-label="打开产品说明">?</Link></div></header>
+    <div className="zo-content"><header className="zo-topbar"><div className="zo-top-left"><button className="zo-menu-button" type="button" aria-label="打开导航" onClick={() => setMenuOpen(true)}>☰</button><Link to="/" className="zo-top-home"><LogoMark/><span><span>City</span><span className="zo-logo-os">OS</span></span></Link><span className="zo-slash">/</span><select aria-label="选择城市" value={city?.id || 'region'} onChange={(event) => navigate(event.target.value === 'region' ? '/workbench' : cityPath(event.target.value, activeSection === 'overview' ? '' : activeSection))}><option value="region">浙江区域</option>{ZHEJIANG_CITIES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="zo-slash">/</span><strong>{NAV.find(([id]) => id === activeSection)?.[1] || '工作台'}</strong></div><div className="zo-top-right"><div className="zo-demo-mode" role="group" aria-label="数据展示模式"><button type="button" className={demoMode === 'demo' ? 'active' : ''} aria-pressed={demoMode === 'demo'} onClick={() => setDemoMode('demo')}>演示数据</button><button type="button" className={demoMode === 'real' ? 'active' : ''} aria-pressed={demoMode === 'real'} onClick={() => setDemoMode('real')}>真实来源</button></div><BeijingClock/><span className="zo-landfall-time">预计登陆 · —</span><Mark tone="muted">非公众预警</Mark><Link to="/about/product" aria-label="打开产品说明">?</Link></div></header>
       <main id="zo-main" className="zo-main"><div className="zo-page-heading"><div><div className="zo-kicker">{city ? `CITY / ${city.id.toUpperCase()}` : 'REGION / ZHEJIANG'} <span className="zo-kicker-line"/></div><h1>{city ? city.name : '浙江区域'}<span> / {NAV.find(([id]) => id === activeSection)?.[1]}</span></h1><p>{city ? city.focus : '宁波、台州、温州、杭州 · 统一视图'}</p></div></div>
-        {activeSection === 'overview' && <Overview city={city} onCity={(id) => navigate(cityPath(id))} realEvents={realEvents} realtime={realtime}/>}
-        {activeSection === 'impact' && <Impact city={city || cityById(selectedCity)} observations={observations} realEvents={realEvents}/>}
-        {activeSection === 'scenario' && <Scenario city={city || cityById(selectedCity)}/>}
+        {demoMode === 'demo' && <div className="zo-demo-global-note"><strong>演示数据模式</strong><span>{demo.data?.label || (demo.state === 'loading' ? '正在载入独立模拟数据集…' : '模拟数据集不可用')} · 与真实观测和历史记录隔离</span></div>}
+        {activeSection === 'overview' && <Overview city={city} onCity={(id) => navigate(cityPath(id))} realEvents={realEvents} realtime={realtime} demo={demo} demoMode={demoMode}/>}
+        {activeSection === 'impact' && <Impact city={city || cityById(selectedCity)} observations={observations} realEvents={realEvents} demo={demo} demoMode={demoMode}/>}
+        {activeSection === 'scenario' && <Scenario city={city || cityById(selectedCity)} demo={demo} demoMode={demoMode}/>}
         {!NAV.some(([id]) => id === activeSection) && <Card><p>页面不存在。</p><Link to="/workbench">返回工作台</Link></Card>}
       </main></div>
   </div>
 }
 
-function Overview({ city, onCity, realEvents, realtime }) {
+function Overview({ city, onCity, realEvents, realtime, demo, demoMode }) {
   const checks = city ? CITY_CHECKS[city.id] : ['关注短时强降雨及城市低洼点巡查', '核对河网水位与沿海潮位条件', '确认重点道路与排水设施现场状态']
   const reported = ZHEJIANG_CITIES.reduce((sum, item) => sum + activeFloodPointCount(realEvents.data, item.id, realEvents.checkedAt), 0)
   const selectedReports = city ? activeFloodPointCount(realEvents.data, city.id, realEvents.checkedAt) : reported
@@ -227,11 +243,12 @@ function Overview({ city, onCity, realEvents, realtime }) {
     <div className="zo-overview-layout">
       <SpatialOverviewMap city={city} onCity={onCity}/>
       <aside className="zo-overview-rail">
-        <Card className="zo-city-status-card"><SectionTitle kicker="CITY STATUS / 当前研判" title={city ? `${city.name}状态` : '四城状态'}/><div className="zo-city-status-list">{ZHEJIANG_CITIES.map((item) => { const count = activeFloodPointCount(realEvents.data, item.id, realEvents.checkedAt); return <Link className={`zo-city-status ${city?.id === item.id ? 'selected' : ''}`} key={item.id} to={cityPath(item.id)}><span className={`zo-status-indicator ${count ? 'zo-status-reported' : ''}`}/><span><strong>{item.name}</strong><small>{count ? `近 6 小时 ${count} 条积水来源记录` : '城区内涝状态待核实'}</small></span><Mark tone={count ? 'amber' : 'muted'}>{count ? '有报告' : '待核实'}</Mark></Link> })}</div><p className="zo-status-boundary">来源报告只覆盖已取得的点位；未覆盖区域不能据此判断安全。机场气象与天气格点不等于城区积水观测。</p></Card>
-        <Card className="zo-decision-preview"><SectionTitle kicker="DECISION / 首要建议" title="决策建议"/><div className="zo-initial-advice"><Mark tone="blue">初步分析</Mark><p>{selectedReports ? `近 6 小时取得 ${selectedReports} 条积水来源记录。建议核对点位、发生时间和现场状态，并检查相邻低洼道路；是否采取措施由主管人员复核。` : city ? `${city.name}当前无可核验的城区积水风险输出。建议按常态监测，并优先核实短时雨量、河网/潮位和低洼点现场信息。` : '四城均缺少可核验的城区积水风险输出。建议保持常态监测，并优先补核降雨、水位与低洼点现场信息。'}</p></div><div className="zo-action-preview"><span>需要人工复核</span>{checks.slice(0, 2).map((item) => <div key={item}>· {item}</div>)}</div><Link className="zo-text-link" to={cityPath(city?.id || 'ningbo', 'impact')}>查看建议措施与复核清单 →</Link></Card>
+        <Card className="zo-city-status-card"><SectionTitle kicker="CITY STATUS / 当前研判" title={city ? `${city.name}状态` : '四城状态'}/><div className="zo-city-status-list">{ZHEJIANG_CITIES.map((item) => { const count = activeFloodPointCount(realEvents.data, item.id, realEvents.checkedAt); const simulated = demoMode === 'demo' ? demo.data?.cities.find((row) => row.city_id === item.id) : null; const status = simulated?.status || (count ? 'warning' : 'watch'); const statusText = simulated ? simulated.status_label : count ? `${count} 条来源积水记录` : '城区内涝状态待核实'; const tone = status === 'severe' ? 'danger' : status === 'warning' ? 'amber' : simulated ? 'mint' : 'muted'; return <Link className={`zo-city-status ${city?.id === item.id ? 'selected' : ''}`} key={item.id} to={cityPath(item.id)}><span className={`zo-status-indicator ${simulated ? `z-demo-status-${status}` : count ? 'zo-status-reported' : ''}`}/><span><strong>{item.name}</strong><small>{statusText}</small></span><Mark tone={tone}>{status === 'severe' ? '高影响' : status === 'warning' ? '关注' : simulated ? '低影响' : count ? '有报告' : '待核实'}</Mark></Link> })}</div><p className="zo-status-boundary">{demoMode === 'demo' ? '以上四城等级来自规则合成演示情景，不是实时内涝监测或风险预测。' : '来源报告只覆盖已取得的点位；未覆盖区域不能据此判断安全。'}</p></Card>
+      <Card className="zo-decision-preview"><SectionTitle kicker="DECISION / 首要建议" title="决策建议"/><div className="zo-initial-advice"><Mark tone="blue">{demoMode === 'demo' ? '模拟情景分析' : '初步分析'}</Mark><p>{demoMode === 'demo' && demo.data ? (city ? (() => { const item = demo.data.cities.find((row) => row.city_id === city.id); return `${item.status_label}：演示 6 小时雨量 ${item.rainfall_6h_mm} mm，河网与潮位条件共同抬升情景压力。建议先核查合成片区点位、河网水位和排水设施，再由人工评估是否需要现场措施。` })() : '演示情景显示四城存在不同等级的合成压力。建议优先检查宁波、温州的情景高影响片区，再复核台州和杭州的雨量、水位与排水条件。') : selectedReports ? `近 6 小时取得 ${selectedReports} 条积水来源记录。建议核对点位、发生时间和现场状态，并检查相邻低洼道路；是否采取措施由主管人员复核。` : city ? `${city.name}当前无可核验的城区积水风险输出。建议按常态监测，并优先核实短时雨量、河网/潮位和低洼点现场信息。` : '四城均缺少可核验的城区积水风险输出。建议保持常态监测，并优先补核降雨、水位与低洼点现场信息。'}</p></div><div className="zo-action-preview"><span>需要人工复核</span>{checks.slice(0, 2).map((item) => <div key={item}>· {item}</div>)}</div><Link className="zo-text-link" to={cityPath(city?.id || 'ningbo', 'impact')}>查看建议措施与复核清单 →</Link></Card>
       </aside>
     </div>
     <RealtimeSnapshotCard city={city} result={realtime}/>
+    {demoMode === 'demo' && city && <Suspense fallback={<Card>载入演示场景…</Card>}><DemoEventPanel city={city} dataset={demo.data}/></Suspense>}
     <Suspense fallback={<Card className="zv-loading">正在加载交互式情景沙盘…</Card>}><ZhejiangVisualLab city={city}/></Suspense>
   </>
 }
@@ -260,17 +277,18 @@ function RealtimeSnapshotCard({ city, result }) {
   </Card>
 }
 
-function Impact({ city, observations, realEvents }) {
-  return <div className="zo-impact-page"><Decision city={city} observations={observations} realEvents={realEvents}/><RealEventPanel city={city} snapshot={realEvents.data} state={realEvents.state} now={realEvents.checkedAt}/><Card className="zo-impact-summary"><SectionTitle kicker="CITY IMPACT / 当前城市影响" title={`${city.name}影响概况`}/><p>人口暴露、道路中断与避难需求仍需有坐标和时间的积水记录、人口及设施资料共同计算。上方居民和部门记录如有展示，属于其来源报告的实际影响与行动，不代表全城覆盖。</p><div className="zo-impact-grid">{['人口暴露', '道路通行', '生命线设施', '避难需求'].map((label) => <div key={label}><span>{label}</span><strong>待接入</strong></div>)}</div><Link className="zo-inline-doc-link" to="/about/product#impact">数据来源与影响计算说明 ↗</Link></Card></div>
+function Impact({ city, observations, realEvents, demo, demoMode }) {
+  return <div className="zo-impact-page"><Decision city={city} observations={observations} realEvents={realEvents} demo={demo} demoMode={demoMode}/>{demoMode === 'demo' && <Suspense fallback={<Card>载入演示场景…</Card>}><DemoEventPanel city={city} dataset={demo.data}/></Suspense>}{demoMode === 'real' && <RealEventPanel city={city} snapshot={realEvents.data} state={realEvents.state} now={realEvents.checkedAt}/>}<Card className="zo-impact-summary"><SectionTitle kicker="CITY IMPACT / 当前城市影响" title={`${city.name}影响概况`}/><p>人口暴露、道路中断与避难需求仍需有坐标和时间的积水记录、人口及设施资料共同计算。{demoMode === 'demo' ? '当前演示页显示的是规则合成的聚合假设，切换到真实来源可查看已取得记录。' : '真实来源记录代表已取得信息，不代表全城覆盖。'}</p><div className="zo-impact-grid">{['人口暴露', '道路通行', '生命线设施', '避难需求'].map((label) => <div key={label}><span>{label}</span><strong>{demoMode === 'demo' ? '见模拟情景' : '待接入'}</strong></div>)}</div><Link className="zo-inline-doc-link" to="/about/product#impact">数据来源与影响计算说明 ↗</Link></Card></div>
 }
 
-function Decision({ city, observations, realEvents }) {
+function Decision({ city, observations, realEvents, demo, demoMode }) {
   const [reviewed, setReviewed] = useState([])
   useEffect(() => setReviewed([]), [city.id])
   const recommendations = CITY_CHECKS[city.id]
   const toggle = (index) => setReviewed((items) => items.includes(index) ? items.filter((item) => item !== index) : [...items, index])
   const reports = activeFloodPointCount(realEvents.data, city.id, realEvents.checkedAt)
-  return <div className="zo-decision-page"><Card><SectionTitle kicker="DECISION / 预置规则建议" title={`${city.name}决策建议`} trailing={<Mark tone="amber">人工复核</Mark>}/><div className="zo-advice-columns"><section><Mark tone="blue">初步分析</Mark><p>{reports ? `近 6 小时取得 ${reports} 条积水来源记录。请先核对点位、水深和现场变化，再判断道路及排水设施的处置需求。` : observations?.state === 'ok' ? '已获取机场气象快照，但机场点位不能代表城区降雨或积水。当前没有可核验的城区风险输出，按常态监测并补核关键水情。' : '当前城区风险数据不可用或覆盖不足，无法判断是否存在内涝。建议先确认数据链路和现场情况，不将“无数据”解释为安全。'}</p></section><section><Mark tone="amber">需要人工复核</Mark>{recommendations.map((item, index) => <div className="zo-decision-row" key={item}><span className="zo-decision-index">0{index + 1}</span><div><strong>{item}</strong><small>复核依据：{city.focus} · 需以现场或部门记录确认</small></div><button type="button" onClick={() => toggle(index)} className={reviewed.includes(index) ? 'selected' : ''}>{reviewed.includes(index) ? '已加入' : '加入清单'}</button></div>)}</section><section><Mark tone="mint">建议措施</Mark><p>优先核验易涝点、下穿道路、河网与潮位状态；补齐当前缺失的雨量及现场水情后再更新研判。任何封路、转移或泵闸运行措施由主管人员基于本地规程决定。</p><div className="zo-review-count">{reviewed.length}<span> 条人工核查项已加入本次清单</span></div></section></div></Card><Card className="zo-review-card"><SectionTitle kicker="REVIEW / 本次会话" title="人工复核清单"/><div className="zo-review-count">{reviewed.length}<span> / {recommendations.length} 条</span></div>{reviewed.length ? <ol className="zo-review-list">{reviewed.map((index) => <li key={index}>{recommendations[index]}</li>)}</ol> : <p className="zo-fineprint">加入需要现场确认的事项后，可在此集中查看。本清单仅保留在当前页面会话。</p>}<div className="zo-review-gate"><span>自动执行措施</span><Mark tone="muted">关闭</Mark></div><div className="zo-review-gate"><span>公众预警发布</span><Mark tone="muted">主管部门负责</Mark></div></Card></div>
+  const simulated = demoMode === 'demo' ? demo?.data?.cities.find((row) => row.city_id === city.id) : null
+  return <div className="zo-decision-page"><Card><SectionTitle kicker="DECISION / 预置规则建议" title={`${city.name}决策建议`} trailing={<Mark tone="amber">人工复核</Mark>}/><div className="zo-advice-columns"><section><Mark tone="blue">{simulated ? '模拟情景初步分析' : '初步分析'}</Mark><p>{simulated ? `${simulated.status_label}：演示条件为 6 小时降雨 ${simulated.rainfall_6h_mm} mm，河网指数 ${simulated.river_level_index.toFixed(2)}、潮位指数 ${simulated.tide_index.toFixed(2)}。先核对真实雨量、水位与低洼点现场状态；这里的点位和影响仅为合成数据。` : reports ? `近 6 小时取得 ${reports} 条积水来源记录。请先核对点位、水深和现场变化，再判断道路及排水设施的处置需求。` : observations?.state === 'ok' ? '已获取机场气象快照，但机场点位不能代表城区降雨或积水。当前没有可核验的城区风险输出，按常态监测并补核关键水情。' : '当前城区风险数据不可用或覆盖不足，无法判断是否存在内涝。建议先确认数据链路和现场情况，不将“无数据”解释为安全。'}</p></section><section><Mark tone="amber">需要人工复核</Mark>{recommendations.map((item, index) => <div className="zo-decision-row" key={item}><span className="zo-decision-index">0{index + 1}</span><div><strong>{item}</strong><small>复核依据：{city.focus} · {simulated ? '规则假设，需替换为现场或部门记录' : '需以现场或部门记录确认'}</small></div><button type="button" onClick={() => toggle(index)} className={reviewed.includes(index) ? 'selected' : ''}>{reviewed.includes(index) ? '已加入' : '加入清单'}</button></div>)}</section><section><Mark tone="mint">建议措施</Mark><p>{simulated ? '演示建议：优先核查高情景压力片区、雨量站/河网/潮位数据连续性和道路现场状态。正式行动须由主管部门依据实测与本地预案决定。' : '优先核验易涝点、下穿道路、河网与潮位状态；补齐当前缺失的雨量及现场水情后再更新研判。任何封路、转移或泵闸运行措施由主管人员基于本地规程决定。'}</p><div className="zo-review-count">{reviewed.length}<span> 条人工核查项已加入本次清单</span></div></section></div></Card><Card className="zo-review-card"><SectionTitle kicker="REVIEW / 本次会话" title="人工复核清单"/><div className="zo-review-count">{reviewed.length}<span> / {recommendations.length} 条</span></div>{reviewed.length ? <ol className="zo-review-list">{reviewed.map((index) => <li key={index}>{recommendations[index]}</li>)}</ol> : <p className="zo-fineprint">加入需要现场确认的事项后，可在此集中查看。本清单仅保留在当前页面会话。</p>}<div className="zo-review-gate"><span>自动执行措施</span><Mark tone="muted">关闭</Mark></div><div className="zo-review-gate"><span>公众预警发布</span><Mark tone="muted">主管部门负责</Mark></div></Card></div>
 }
 
 function Events({ city }) {
@@ -280,9 +298,9 @@ function Events({ city }) {
   return <div className="zo-history-replay"><Card><SectionTitle kicker="EVENT REPLAY / 历史回溯" title="选择台风事件"/><div className="zo-history-events">{entries.length ? entries.map((event) => <button className={selected?.id === event.id ? 'active' : ''} key={event.id} type="button" aria-pressed={selected?.id === event.id} onClick={() => setSelectedId(event.id)}><span>{event.year}</span><strong>{event.title}</strong><small>{cityById(event.city)?.name} · {event.type}</small></button>) : <p>当前城市暂无可选历史事件。</p>}</div>{selected && <div className="zo-history-summary"><div><strong>{selected.title}</strong><span>{selected.source} · {selected.year}</span><p>{selected.note}</p></div><a href={selected.url} target="_blank" rel="noreferrer">查看事件资料 ↗</a></div>}</Card>{selected?.id === 'infa-2021' ? <HistoricalRainPanel city={city}/> : <Card className="zo-history-missing"><strong>{selected?.title || '该事件'}的可用城市降雨时序尚未接入</strong><p>目前仅展示登记的事件资料与可匹配路径；不会用其他年份的降雨记录代替。</p></Card>}<HistoricalTrackPanel city={city} year={selected?.year}/><Card className="zo-history-missing"><strong>内涝点位与城市积水图层</strong><p>当前历史事件缺少带坐标、观测时间和水深的城市积水点真值，因此地图只展示真实轨迹和已登记气象资料，不绘制推测的历史积水点。</p></Card></div>
 }
 
-function Scenario({ city }) {
+function Scenario({ city, demo, demoMode }) {
   const [mode, setMode] = useState('custom')
-  return <><div className="zo-workspace-tabs" role="tablist" aria-label="推演工作区"><button type="button" role="tab" aria-selected={mode === 'custom'} className={mode === 'custom' ? 'active' : ''} onClick={() => setMode('custom')}>自定义情景</button><button type="button" role="tab" aria-selected={mode === 'history'} className={mode === 'history' ? 'active' : ''} onClick={() => setMode('history')}>历史回溯</button></div>{mode === 'custom' ? <ScenarioStudio city={city}/> : <Events city={city}/>}</>
+  return <><div className="zo-workspace-tabs" role="tablist" aria-label="推演工作区"><button type="button" role="tab" aria-selected={mode === 'custom'} className={mode === 'custom' ? 'active' : ''} onClick={() => setMode('custom')}>自定义情景</button><button type="button" role="tab" aria-selected={mode === 'history'} className={mode === 'history' ? 'active' : ''} onClick={() => setMode('history')}>历史回溯</button></div>{mode === 'custom' ? <><ScenarioStudio city={city}/>{demoMode === 'demo' && demo.data && <Suspense fallback={<Card>载入演示情景数据…</Card>}><DemoEventPanel city={city} dataset={demo.data}/></Suspense>}</> : <Events city={city}/>}</>
 }
 
 function About() {
@@ -308,5 +326,8 @@ export default function ZhejiangApp() {
   const observations = useObservations()
   const realEvents = useRealEventEvidence()
   const realtime = useZhejiangRealtime()
-  return <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}><Routes><Route path="/" element={<Landing/>}/><Route path="/welcome" element={<Landing/>}/><Route path="/workbench" element={<Workbench observations={observations} realEvents={realEvents} realtime={realtime}/>}/><Route path="/workbench/:cityId" element={<Workbench observations={observations} realEvents={realEvents} realtime={realtime}/>}/><Route path="/workbench/:cityId/:section" element={<Workbench observations={observations} realEvents={realEvents} realtime={realtime}/>}/><Route path="/overview" element={<Navigate to="/workbench" replace/>}/><Route path="/cities/*" element={<Navigate to="/workbench" replace/>}/><Route path="/about" element={<Navigate to="/about/product" replace/>}/><Route path="/about/:section" element={<About/>}/><Route path="*" element={<div className="zo-not-found"><h1>页面不存在</h1><Link to="/">返回首页</Link></div>}/></Routes></BrowserRouter>
+  const demo = useDemoDataset()
+  const [demoMode, setDemoMode] = useState('demo')
+  const workbench = <Workbench observations={observations} realEvents={realEvents} realtime={realtime} demo={demo} demoMode={demoMode} setDemoMode={setDemoMode}/>
+  return <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}><Routes><Route path="/" element={<Landing/>}/><Route path="/welcome" element={<Landing/>}/><Route path="/workbench" element={workbench}/><Route path="/workbench/:cityId" element={workbench}/><Route path="/workbench/:cityId/:section" element={workbench}/><Route path="/overview" element={<Navigate to="/workbench" replace/>}/><Route path="/cities/*" element={<Navigate to="/workbench" replace/>}/><Route path="/about" element={<Navigate to="/about/product" replace/>}/><Route path="/about/:section" element={<About/>}/><Route path="*" element={<div className="zo-not-found"><h1>页面不存在</h1><Link to="/">返回首页</Link></div>}/></Routes></BrowserRouter>
 }

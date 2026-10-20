@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "dataset_id": "zhejiang-compound-rain-demo-v1",
+  "dataset_type": "simulated_demo",
+  "label": "演示模拟数据 · 非真实观测",
+  "generated_at": "2026-10-21T00:00:00Z",
+  "time_zone": "Asia/Shanghai",
+  "time_basis": "relative_hours_from_scenario_start",
+  "observation_time": null,
+  "actual_available_at": null,
+  "spatial_reference": "EPSG:4326",
+  "units": {"rainfall":"mm cumulative within the demo scenario","depth":"cm, synthetic","population":"people, synthetic aggregates","indices":"dimensionless, 0-1"},
+  "quality_mark": "synthetic_demo_only",
+  "missing_value": null,
+  "source_catalog": [{"id":"synthetic-rules-v1","type":"synthetic_generator","description":"本仓库中的演示规则合成；非真实传感器、居民或部门来源。","license_note":"不含第三方事实数据；仅用于本项目演示，保留模拟标签；独立再利用前应确认许可。"}],
+  "scenario": {
+    "id": "demo-compound-rain-01",
+    "name": "四城复合降雨与高水位演示情景",
+    "description": "用于展示数据接入后的分析工作流。所有时间序列、点位、人数和响应措施均为规则合成，不代表真实天气、地点、居民或部门行动。",
+    "duration_hours": 6,
+    "rule_version": "synthetic-rules-v1"
+  },
+  "cities": [
+    {"city_id":"ningbo","status":"severe","status_label":"高影响情景","rainfall_6h_mm":168,"river_level_index":0.82,"tide_index":0.74,"drainage_index":0.48,"exposed_population":18400},
+    {"city_id":"taizhou","status":"warning","status_label":"关注情景","rainfall_6h_mm":112,"river_level_index":0.61,"tide_index":0.68,"drainage_index":0.57,"exposed_population":9600},
+    {"city_id":"wenzhou","status":"severe","status_label":"高影响情景","rainfall_6h_mm":153,"river_level_index":0.77,"tide_index":0.79,"drainage_index":0.44,"exposed_population":15200},
+    {"city_id":"hangzhou","status":"watch","status_label":"低影响情景","rainfall_6h_mm":76,"river_level_index":0.58,"tide_index":0.20,"drainage_index":0.69,"exposed_population":7100}
+  ],
+  "timeline": [
+    {"id":"nb-00","city_id":"ningbo","hour":0,"rainfall_mm":0,"water_index":0.12,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"nb-02","city_id":"ningbo","hour":2,"rainfall_mm":42,"water_index":0.35,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"nb-04","city_id":"ningbo","hour":4,"rainfall_mm":91,"water_index":0.68,"severity":"warning","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"nb-06","city_id":"ningbo","hour":6,"rainfall_mm":168,"water_index":0.91,"severity":"severe","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-00","city_id":"taizhou","hour":0,"rainfall_mm":0,"water_index":0.10,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-02","city_id":"taizhou","hour":2,"rainfall_mm":29,"water_index":0.28,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-04","city_id":"taizhou","hour":4,"rainfall_mm":67,"water_index":0.49,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-06","city_id":"taizhou","hour":6,"rainfall_mm":112,"water_index":0.72,"severity":"warning","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-00","city_id":"wenzhou","hour":0,"rainfall_mm":0,"water_index":0.13,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-02","city_id":"wenzhou","hour":2,"rainfall_mm":36,"water_index":0.33,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-04","city_id":"wenzhou","hour":4,"rainfall_mm":83,"water_index":0.65,"severity":"warning","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-06","city_id":"wenzhou","hour":6,"rainfall_mm":153,"water_index":0.88,"severity":"severe","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-00","city_id":"hangzhou","hour":0,"rainfall_mm":0,"water_index":0.08,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-02","city_id":"hangzhou","hour":2,"rainfall_mm":21,"water_index":0.19,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-04","city_id":"hangzhou","hour":4,"rainfall_mm":48,"water_index":0.31,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-06","city_id":"hangzhou","hour":6,"rainfall_mm":76,"water_index":0.43,"severity":"watch","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"}
+  ],
+  "points": [
+    {"id":"nb-p1","city_id":"ningbo","label":"演示点位 A","coordinates":[121.55,29.87],"depth_cm":38,"severity":"warning","onset_hour":2,"area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"nb-p2","city_id":"ningbo","label":"演示点位 B","coordinates":[121.61,29.91],"depth_cm":62,"severity":"severe","onset_hour":4,"area":"合成片区 B","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-p1","city_id":"taizhou","label":"演示点位 A","coordinates":[121.42,28.66],"depth_cm":27,"severity":"warning","onset_hour":2,"area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-p2","city_id":"taizhou","label":"演示点位 B","coordinates":[121.48,28.70],"depth_cm":19,"severity":"watch","onset_hour":6,"area":"合成片区 B","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-p1","city_id":"wenzhou","label":"演示点位 A","coordinates":[120.70,27.99],"depth_cm":46,"severity":"warning","onset_hour":2,"area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-p2","city_id":"wenzhou","label":"演示点位 B","coordinates":[120.76,28.03],"depth_cm":71,"severity":"severe","onset_hour":4,"area":"合成片区 B","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-p1","city_id":"hangzhou","label":"演示点位 A","coordinates":[120.15,30.27],"depth_cm":14,"severity":"watch","onset_hour":4,"area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-p2","city_id":"hangzhou","label":"演示点位 B","coordinates":[120.21,30.31],"depth_cm":9,"severity":"watch","onset_hour":6,"area":"合成片区 B","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"}
+  ],
+  "resident_impacts": [
+    {"id":"nb-r1","city_id":"ningbo","area":"合成片区 A","population_exposed":6200,"stay":3410,"self_evacuate":1550,"assisted":1240,"shelter_demand":930,"evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-r1","city_id":"taizhou","area":"合成片区 A","population_exposed":3100,"stay":1860,"self_evacuate":744,"assisted":496,"shelter_demand":310,"evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-r1","city_id":"wenzhou","area":"合成片区 A","population_exposed":5400,"stay":2808,"self_evacuate":1404,"assisted":1188,"shelter_demand":864,"evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-r1","city_id":"hangzhou","area":"合成片区 A","population_exposed":2200,"stay":1452,"self_evacuate":528,"assisted":220,"shelter_demand":132,"evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"}
+  ],
+  "department_responses": [
+    {"id":"nb-a1","city_id":"ningbo","hour":2,"action":"巡查低洼道路与排水设施","status":"建议核查","area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"nb-a2","city_id":"ningbo","hour":4,"action":"复核河网水位、潮位与交通绕行预案","status":"建议核查","area":"合成片区 B","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"tz-a1","city_id":"taizhou","hour":4,"action":"复核短时雨强与易涝点巡查安排","status":"建议核查","area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-a1","city_id":"wenzhou","hour":2,"action":"检查低洼点现场状态与排水能力","status":"建议核查","area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"wz-a2","city_id":"wenzhou","hour":4,"action":"核对道路通行及人员转移预案","status":"建议核查","area":"合成片区 B","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"},
+    {"id":"hz-a1","city_id":"hangzhou","hour":4,"action":"维持常态巡查并复核河网水位","status":"建议核查","area":"合成片区 A","evidence_type":"simulated_scenario","source_id":"synthetic-rules-v1"}
+  ]
+}

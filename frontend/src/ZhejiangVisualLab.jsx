@@ -73,22 +73,60 @@ function TerrainScene({ frame, cityName }) {
     groundGeo.computeVertexNormals()
     const ground = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .92 }))
     root.add(ground)
-    const grid = new THREE.GridHelper(16, 24, 0x7894a7, 0xc2d2dd); grid.position.y = -.24; root.add(grid)
+    const base = new THREE.Mesh(new THREE.BoxGeometry(16, .28, 16), new THREE.MeshStandardMaterial({ color: '#d9e5e3', roughness: 1 }))
+    base.position.y = -.34; root.add(base)
+    const roadMat = new THREE.MeshStandardMaterial({ color: '#c4d2dc', roughness: .94 })
+    for (let offset = -6; offset <= 6; offset += 4) {
+      const avenue = new THREE.Mesh(new THREE.BoxGeometry(.54, .018, 16), roadMat)
+      avenue.position.set(offset, -.185, 0); root.add(avenue)
+      const crossStreet = new THREE.Mesh(new THREE.BoxGeometry(16, .018, .54), roadMat)
+      crossStreet.position.set(0, -.183, offset); root.add(crossStreet)
+    }
     const buildingGeo = new THREE.BoxGeometry(1, 1, 1)
-    const buildingMat = new THREE.MeshStandardMaterial({ color: '#dce7ee', roughness: .7, metalness: .05 })
+    const buildingMat = new THREE.MeshStandardMaterial({ color: '#dce7ee', roughness: .56, metalness: .08, vertexColors: true })
     const buildings = new THREE.InstancedMesh(buildingGeo, buildingMat, 74)
     const dummy = new THREE.Object3D()
     let n = 0
     for (let z = -6; z <= 6; z += 2) for (let x = -6; x <= 6; x += 2) {
       if (((x * 7 + z * 3) % 5) === 0 || n >= 74) continue
-      const h = .45 + (Math.abs(Math.sin(x * 3.1 + z)) * 1.6)
+      const h = .52 + (Math.abs(Math.sin(x * 3.1 + z)) * 2.0)
+      const width = .72 + (n % 3) * .12
       dummy.position.set(x + .35, terrainHeight(x, z) + h / 2, z + .3)
-      dummy.scale.set(.65 + (n % 3) * .08, h, .62 + (n % 2) * .1); dummy.updateMatrix(); buildings.setMatrixAt(n++, dummy.matrix)
+      dummy.scale.set(width, h, .7 + (n % 2) * .12); dummy.updateMatrix(); buildings.setMatrixAt(n, dummy.matrix)
+      const facade = new THREE.Color().setHSL(.56 + ((n % 5) * .012), .23, .78 - ((n % 4) * .025))
+      buildings.setColorAt(n, facade)
+      n += 1
     }
     buildings.count = n; root.add(buildings)
-    const waterGeo = new THREE.CircleGeometry(.28, 20); waterGeo.rotateX(-Math.PI / 2)
-    const waterMat = new THREE.MeshStandardMaterial({ color: '#4b9ad1', emissive: '#1676b9', emissiveIntensity: .24, transparent: true, opacity: .76, roughness: .24, side: THREE.DoubleSide })
-    const water = new THREE.InstancedMesh(waterGeo, waterMat, 80)
+    const roofGeo = new THREE.BoxGeometry(1, 1, 1)
+    const roofMat = new THREE.MeshStandardMaterial({ color: '#f7fbfd', roughness: .72 })
+    const roofs = new THREE.InstancedMesh(roofGeo, roofMat, 74)
+    const roofDummy = new THREE.Object3D()
+    for (let index = 0; index < n; index += 1) {
+      buildings.getMatrixAt(index, roofDummy.matrix)
+      roofDummy.matrix.decompose(roofDummy.position, roofDummy.quaternion, roofDummy.scale)
+      roofDummy.position.y += roofDummy.scale.y / 2 + .025
+      roofDummy.scale.set(roofDummy.scale.x * 1.04, .05, roofDummy.scale.z * 1.04)
+      roofDummy.updateMatrix(); roofs.setMatrixAt(index, roofDummy.matrix)
+    }
+    roofs.count = n; root.add(roofs)
+    const windowGeo = new THREE.BoxGeometry(.16, .12, .025)
+    const windowMat = new THREE.MeshStandardMaterial({ color: '#83b9d5', emissive: '#5593b3', emissiveIntensity: .16, roughness: .35 })
+    const windows = new THREE.InstancedMesh(windowGeo, windowMat, 220)
+    const windowDummy = new THREE.Object3D()
+    let windowCount = 0
+    for (let z = -6; z <= 6 && windowCount < 220; z += 2) for (let x = -6; x <= 6 && windowCount < 220; x += 2) {
+      if (((x * 7 + z * 3) % 5) === 0) continue
+      const h = .52 + (Math.abs(Math.sin(x * 3.1 + z)) * 2.0)
+      for (let row = 0; row < Math.floor(h / .32) && windowCount < 220; row += 1) for (let col = -1; col <= 1 && windowCount < 220; col += 1) {
+        windowDummy.position.set(x + .35 + col * .2, terrainHeight(x, z) + .28 + row * .29, z - .06)
+        windowDummy.updateMatrix(); windows.setMatrixAt(windowCount++, windowDummy.matrix)
+      }
+    }
+    windows.count = windowCount; root.add(windows)
+    const waterGeo = new THREE.CircleGeometry(.48, 28); waterGeo.rotateX(-Math.PI / 2)
+    const waterMat = new THREE.MeshStandardMaterial({ color: '#5aa8d8', emissive: '#1676b9', emissiveIntensity: .18, transparent: true, opacity: .58, roughness: .2, metalness: .08, side: THREE.DoubleSide, depthWrite: false })
+    const water = new THREE.InstancedMesh(waterGeo, waterMat, 96)
     water.instanceMatrix.setUsage(THREE.DynamicDrawUsage); root.add(water)
     const waterDummy = new THREE.Object3D()
     const resize = () => {
@@ -102,7 +140,7 @@ function TerrainScene({ frame, cityName }) {
       renderer.outputColorSpace = THREE.SRGBColorSpace
       host.appendChild(renderer.domElement)
       resize()
-      fallbackTimer = setTimeout(() => setFallback(true), 1200)
+      fallbackTimer = setTimeout(() => { if (!rendered) setFallback(true) }, 1200)
     } catch {
       host.dataset.error = 'true'
       setFallback(true)
@@ -126,13 +164,15 @@ function TerrainScene({ frame, cityName }) {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const animate = (now) => {
       if (disposed) return
-      const count = Math.round(frameRef.current.stress * 72)
+      const count = Math.round(frameRef.current.stress * 84)
       let idx = 0
       for (let z = -7.2; z <= 7.2 && idx < count; z += .9) for (let x = -7.2; x <= 7.2 && idx < count; x += .9) {
-        const mod = Math.abs(Math.sin(x * 1.23 + z * 2.7) * Math.cos(z * .7 - x * .9))
+        const basinBias = Math.exp(-((x - 2.5) ** 2 + (z + 1.8) ** 2) / 28)
+        const mod = Math.abs(Math.sin(x * 1.23 + z * 2.7) * Math.cos(z * .7 - x * .9)) * .68 + basinBias * .48
         if (mod > frameRef.current.stress + .08) continue
-        waterDummy.position.set(x, terrainHeight(x, z) + .035 + (reduced ? 0 : Math.sin(now / 650 + idx) * .012), z)
-        waterDummy.scale.set(1 + mod * .5, 1, .8 + mod * .35); waterDummy.updateMatrix(); water.setMatrixAt(idx++, waterDummy.matrix)
+        waterDummy.position.set(x, terrainHeight(x, z) + .055 + (reduced ? 0 : Math.sin(now / 650 + idx) * .009), z)
+        const spread = clamp(.48 + frameRef.current.stress * .85 + basinBias * .55, .48, 1.45)
+        waterDummy.scale.set(spread * (1 + mod * .25), 1, spread * (.72 + mod * .2)); waterDummy.updateMatrix(); water.setMatrixAt(idx++, waterDummy.matrix)
       }
       water.count = idx; water.instanceMatrix.needsUpdate = true
       try {
@@ -145,7 +185,7 @@ function TerrainScene({ frame, cityName }) {
     return () => {
       disposed = true; cancelAnimationFrame(raf); clearTimeout(fallbackTimer); observer.disconnect()
       renderer.domElement.removeEventListener('pointerdown', onDown); renderer.domElement.removeEventListener('pointermove', onMove); renderer.domElement.removeEventListener('pointerup', onUp); renderer.domElement.removeEventListener('pointercancel', onUp); renderer.domElement.removeEventListener('wheel', onWheel)
-      renderer.dispose(); groundGeo.dispose(); buildingGeo.dispose(); waterGeo.dispose(); buildingMat.dispose(); waterMat.dispose(); scene.traverse((object) => { if (object.geometry && object !== ground && object !== buildings && object !== water) object.geometry.dispose() })
+      renderer.dispose(); groundGeo.dispose(); buildingGeo.dispose(); roofGeo.dispose(); windowGeo.dispose(); waterGeo.dispose(); buildingMat.dispose(); roofMat.dispose(); windowMat.dispose(); roadMat.dispose(); waterMat.dispose(); scene.traverse((object) => { if (object.geometry && object !== ground && object !== buildings && object !== water && object !== roofs && object !== windows) object.geometry.dispose() })
       if (host.contains(renderer.domElement)) host.removeChild(renderer.domElement)
     }
   }, [])
@@ -159,7 +199,7 @@ function TerrainScene({ frame, cityName }) {
       const col = (index * 5 + 2) % 10, row = Math.floor(index * 1.8 + 2) % 10
       return <span key={`water-${index}`} className="zv-fallback-water" style={{ left: `${6 + col * 8.7}%`, top: `${8 + row * 8.3}%`, opacity: .4 + frame.stress * .52 }}/>
     })}</div><span className="zv-fallback-axis">合成地形 / 示意模型</span>
-  </div>}<div className="zv-scene-overlay"><span>3D TERRAIN LAB</span><strong>{cityName} · 参数化场景</strong></div><div className="zv-scene-legend"><i/>情景水面 <i className="building"/>合成建筑</div><div className="zv-scene-instructions">雨量与边界参数驱动水面变化</div></div>
+  </div>}<div className="zv-scene-overlay"><span>3D TERRAIN LAB</span><strong>{cityName} · 城市街区合成模型</strong></div><div className="zv-scene-legend"><i/>情景积水斑块 <i className="building"/>合成建筑</div><div className="zv-scene-instructions">拖动旋转 · 滚轮缩放 · 时间轴驱动积水斑块扩展</div></div>
 }
 
 function Field({ label, value, min, max, unit, onChange }) {
