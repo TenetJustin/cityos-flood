@@ -47,6 +47,7 @@ function cityState(observations, cityId) {
 }
 
 function Mark({ tone = 'muted', children }) { return <span className={`zo-mark zo-mark-${tone}`}>{children}</span> }
+function LogoMark() { return <span className="zo-logo-glyph"><img src={`${import.meta.env.BASE_URL}favicon.svg`} alt=""/></span> }
 function Arrow() { return <span aria-hidden="true">↗</span> }
 function Card({ children, className = '' }) { return <section className={`zo-card ${className}`}>{children}</section> }
 function SectionTitle({ kicker, title, trailing }) { return <div className="zo-section-title"><div><small>{kicker}</small><h2>{title}</h2></div>{trailing}</div> }
@@ -75,7 +76,7 @@ function ProvinceMap({ cityId, onCity, landing = false }) {
 function Landing({ observations }) {
   const navigate = useNavigate()
   return <div className="zo-landing">
-    <header className="zo-landing-header"><div className="zo-logo"><span className="zo-logo-glyph">◈</span><strong>CityOS</strong><span className="zo-logo-sub">ZHEJIANG</span></div><div className="zo-header-right"><Mark tone="mint">研究工作台</Mark><Link to="/about">说明 <Arrow/></Link></div></header>
+    <header className="zo-landing-header"><div className="zo-logo"><LogoMark/><strong>CityOS</strong><span className="zo-logo-sub">ZHEJIANG</span></div><div className="zo-header-right"><Mark tone="mint">研究工作台</Mark><Link to="/about">说明 <Arrow/></Link></div></header>
     <main className="zo-landing-main"><div className="zo-landing-copy"><div className="zo-kicker"><span className="zo-live-dot"/> CITY OPERATING SYSTEM / ZHEJIANG</div><h1>浙江台风与<br/>城市内涝<span>世界模型</span></h1><p>四城态势、历史事件、情景预演与决策建议，汇于一处。</p><Link className="zo-primary" to="/workbench">进入工作台 <span>↗</span></Link><div className="zo-landing-cities"><span className="zo-small-label">选择城市</span>{ZHEJIANG_CITIES.map((city, index) => <Link key={city.id} to={cityPath(city.id)}><span>0{index + 1}</span><strong>{city.name}</strong><span className="zo-city-chevron">↗</span></Link>)}</div></div>
       <div className="zo-landing-visual"><ProvinceMap onCity={(id) => navigate(cityPath(id))} landing/><div className="zo-map-overlay"><span>研究范围</span><strong>宁波 · 台州 · 温州 · 杭州</strong><small>点击地图标记进入城市工作台</small></div></div></main>
     <footer className="zo-landing-footer"><span>CityOS · 浙江四城</span><span>公开机场快照：{ZHEJIANG_CITIES.filter((city) => cityObservation(observations, city.id)?.latest).length} / 4 站有报文</span><span>Asia/Shanghai · <Link to="/about">说明与边界</Link></span></footer>
@@ -100,7 +101,7 @@ function Workbench({ observations }) {
   const navPath = (id) => city ? cityPath(city.id, id === 'overview' ? '' : id) : id === 'overview' ? '/workbench' : cityPath(selectedCity, id)
   const station = cityObservation(observations, city?.id)
   const status = city ? cityState(observations, city.id) : null
-  return <div className="zo-shell"><a className="zo-skip" href="#zo-main">跳转至内容</a><aside className={`zo-sidebar ${menuOpen ? 'open' : ''}`}><Link className="zo-sidebar-brand" to="/"><span className="zo-logo-glyph">◈</span><span><strong>CityOS</strong><small>ZHEJIANG / WORKBENCH</small></span></Link><div className="zo-sidebar-label">工作空间</div><nav aria-label="工作台导航">{NAV.map(([id, label, icon]) => <NavLink key={id} to={navPath(id)} className={activeSection === id ? 'active' : ''}><span className="zo-nav-icon">{icon}</span>{label}<span className="zo-nav-arrow">↗</span></NavLink>)}</nav><div className="zo-sidebar-bottom"><Mark tone="mint">研究模式</Mark><p>浙江四城统一工作台</p><Link to="/about">数据与使用说明 ↗</Link></div></aside>
+  return <div className="zo-shell"><a className="zo-skip" href="#zo-main">跳转至内容</a><aside className={`zo-sidebar ${menuOpen ? 'open' : ''}`}><Link className="zo-sidebar-brand" to="/"><LogoMark/><span><strong>CityOS</strong><small>ZHEJIANG / WORKBENCH</small></span></Link><div className="zo-sidebar-label">工作空间</div><nav aria-label="工作台导航">{NAV.map(([id, label, icon]) => <NavLink key={id} to={navPath(id)} className={activeSection === id ? 'active' : ''}><span className="zo-nav-icon">{icon}</span>{label}<span className="zo-nav-arrow">↗</span></NavLink>)}</nav><div className="zo-sidebar-bottom"><Mark tone="mint">研究模式</Mark><p>浙江四城统一工作台</p><Link to="/about">数据与使用说明 ↗</Link></div></aside>
     {menuOpen && <button className="zo-backdrop" aria-label="关闭菜单" onClick={() => setMenuOpen(false)}/>}
     <div className="zo-content"><header className="zo-topbar"><div className="zo-top-left"><button className="zo-menu-button" type="button" aria-label="打开菜单" onClick={() => setMenuOpen(true)}>☰</button><Link to="/" className="zo-top-home">CityOS</Link><span className="zo-slash">/</span><select aria-label="选择城市" value={city?.id || 'region'} onChange={(event) => navigate(event.target.value === 'region' ? '/workbench' : cityPath(event.target.value, activeSection === 'overview' ? '' : activeSection))}><option value="region">浙江区域</option>{ZHEJIANG_CITIES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="zo-slash">/</span><strong>{NAV.find(([id]) => id === activeSection)?.[1] || '工作台'}</strong></div><div className="zo-top-right"><span className="zo-top-time">北京时间 · {new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit' }).format(new Date())}</span><Mark tone="muted">非公众预警</Mark><Link to="/about" aria-label="打开说明">?</Link></div></header>
       <main id="zo-main" className="zo-main"><div className="zo-page-heading"><div><div className="zo-kicker">{city ? `CITY / ${city.id.toUpperCase()}` : 'REGION / ZHEJIANG'} <span className="zo-kicker-line"/></div><h1>{city ? city.name : '浙江区域'}<span> / {NAV.find(([id]) => id === activeSection)?.[1]}</span></h1><p>{city ? city.focus : '宁波、台州、温州、杭州 · 统一视图'}</p></div><div className="zo-mode-tabs" aria-label="工作模式"><Link className={['overview', 'points', 'impact', 'decision', 'data'].includes(activeSection) ? 'active' : ''} to={city ? cityPath(city.id) : '/workbench'}>实时</Link><Link className={activeSection === 'events' ? 'active' : ''} to={navPath('events')}>回放</Link><Link className={activeSection === 'scenario' ? 'active' : ''} to={navPath('scenario')}>预演</Link></div></div>
@@ -180,7 +181,7 @@ function Data({ city, observations }) {
 
 function About() {
   return <div className="zo-about">
-    <header><Link to="/" className="zo-logo"><span className="zo-logo-glyph">◈</span><strong>CityOS</strong></Link><Link to="/workbench">进入工作台 ↗</Link></header>
+    <header><Link to="/" className="zo-logo"><LogoMark/><strong>CityOS</strong></Link><Link to="/workbench">进入工作台 ↗</Link></header>
     <div className="zo-about-content"><div className="zo-kicker">ABOUT / 说明中心</div><h1>浙江台风与城市内涝世界模型</h1>
       <p>CityOS 面向宁波、台州、温州、杭州，组织台风、降雨、潮位、河网、城市空间和历史事件的证据，支持研究分析、情景预演和人工复核的决策建议。</p>
       <div className="zo-about-grid">
