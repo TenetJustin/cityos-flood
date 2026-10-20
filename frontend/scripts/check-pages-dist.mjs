@@ -7,6 +7,7 @@ import { assessForecastSnapshot } from '../src/zhejiangForecast.js'
 import { assessHistoricalRain } from '../src/zhejiangHistoricalRain.js'
 import { assessSynopticRain } from '../src/zhejiangSynopticRain.js'
 import { assessTrackSnapshot } from '../src/historicalTracks.js'
+import { assessEvidenceManifest, EVIDENCE_FILES } from './evidence-manifest.mjs'
 
 const dist = new URL('../dist/', import.meta.url)
 const read = (path) => readFile(new URL(path, dist), 'utf8')
@@ -39,4 +40,7 @@ else {
 assert.equal(assessHistoricalRain(await json('zhejiang-historical-rain-2021.json')).valid, true, 'historical rainfall malformed')
 assert.equal(assessSynopticRain(await json('zhejiang-synoptic-rain-2021.json')).valid, true, 'synoptic rainfall malformed')
 assert.equal(assessTrackSnapshot(await json('zhejiang-track-candidates.json')).valid, true, 'track index malformed')
-console.log('Static Pages routes and five evidence snapshots verified.')
+const manifest = await json('zhejiang-evidence-manifest.json')
+const evidenceBytes = Object.fromEntries(await Promise.all(EVIDENCE_FILES.map(async (path) => [path, await readFile(new URL(`data/${path}`, dist))])))
+assert.deepEqual(assessEvidenceManifest(manifest, evidenceBytes), { valid: true, issues: [] }, 'evidence hashes differ from deployed files')
+console.log('Static Pages routes, five evidence snapshots and exact-file hashes verified.')
