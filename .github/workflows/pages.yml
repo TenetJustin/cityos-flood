@@ -55,6 +55,16 @@ jobs:
           node scripts/fetch-zhejiang-observations.mjs
           python scripts/fetch_zhejiang_forecast.py --allow-unavailable
           npm run build:pages
+          npm run check:pages
+      - name: Keep short-term evidence snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhejiang-evidence-${{ github.run_id }}
+          path: |
+            frontend/public/data/zhejiang-observations.json
+            frontend/public/data/zhejiang-weather-forecast.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static artifact

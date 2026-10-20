@@ -36,3 +36,11 @@ jobs:
         run: |
           npm test
           npm run build
+      - name: Check Zhejiang static Pages output
+        working-directory: frontend
+        env:
+          VITE_STATIC_PAGES: 'true'
+          VITE_BASE_PATH: /cityos-flood/
+        run: |
+          npm run build:pages
+          npm run check:pages

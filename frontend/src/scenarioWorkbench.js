@@ -113,7 +113,7 @@ export function scenarioPlanMarkdown({ cityName, name, result, weatherDriver = n
     ...(weatherDriver ? [
       '## 外部降雨驱动（模型推断）', '',
       `- ECMWF IFS 格点 24 小时降雨：${weatherDriver.rawRainMm24} mm；规则输入保留 0.1 mm 精度为 ${weatherDriver.rainMm24} mm。非城区雨量实测。`,
-      `- 有效窗口：${weatherDriver.startAt} 至 ${weatherDriver.endAt}（UTC）；起报：${weatherDriver.modelRunAt}；本系统首次取得：${weatherDriver.availableAt}。`,
+      `- 有效窗口：${weatherDriver.startAt} 至 ${weatherDriver.endAt}（UTC）；起报：${weatherDriver.modelRunAt}；本次快照取得：${weatherDriver.availableAt}（非产品首次发布时间）。`,
       `- 格点距城市示意中心：${weatherDriver.gridDistanceKm} km；原始文件 SHA-256：${weatherDriver.sourceSha256}。`,
       `- 数据来源：${weatherDriver.sourceUrl}；1 小时峰值仍由人工假设，不来自此预报快照。`, '',
     ] : ['- 降雨驱动：人工假设；未导入外部天气模式。', '']),

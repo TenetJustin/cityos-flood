@@ -64,6 +64,7 @@ test('imported ECMWF driver remains distinct from human peak and flood-model cla
   const markdown = scenarioPlanMarkdown({ cityName: '温州', name: '格点驱动', result, weatherDriver: driver, createdAt: '2026-10-20 12:00' })
   assert.match(markdown, /外部降雨驱动（模型推断）/)
   assert.match(markdown, /起报：2026-10-19T06:00:00Z/)
+  assert.match(markdown, /本次快照取得：2026-10-19T19:31:00Z/)
   assert.match(markdown, /1 小时峰值仍由人工假设/)
   assert.match(markdown, /非真实观测、非已验证预测/)
 })

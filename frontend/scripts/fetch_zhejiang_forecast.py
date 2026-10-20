@@ -85,7 +85,7 @@ def build_snapshot(messages, raw_sha256, retrieved_at):
         "model_run_at": iso(run_at), "issued_at": None, "available_at": retrieved_at, "retrieved_at": retrieved_at,
         "source_sha256": raw_sha256, "source": source_metadata(), "cities": by_city,
         "quality": {"lead_times_complete": True, "city_coverage": len(by_city), "maximum_run_age_hours": 24},
-        "limitations": ["模式格点累计降雨，不是雨量站真实观测", "起报时间不是产品正式发布时间；available_at 仅为本系统首次抓取时间", "约 0.25 度格点不足以解析城区排水和积水；不可当作内涝概率或公众预警"],
+        "limitations": ["模式格点累计降雨，不是雨量站真实观测", "起报时间不是产品正式发布时间；available_at 仅为本次快照实际抓取时间，不能证明产品或跨构建首次可获得时间", "约 0.25 度格点不足以解析城区排水和积水；不可当作内涝概率或公众预警"],
     }
 
 

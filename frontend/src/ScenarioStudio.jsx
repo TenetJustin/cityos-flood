@@ -110,7 +110,7 @@ function ForecastDriverPicker({ cityId, onImport }) {
   }
   return <div className="zs-forecast-driver"><div><strong>公开天气模式作为降雨输入</strong><span>只导入一个完整未来 24 小时窗口；潮位、河网、排水与居民条件仍需人工设置。</span></div>
     {state === 'ok' && chosen ? <div className="zs-forecast-controls"><label className="zs-field"><span>选择未来 24 小时窗口 · 北京时间</span><select value={chosen.endingLeadHours} onChange={(event) => setEndingLead(Number(event.target.value))}>{windows.map((item) => <option key={item.endingLeadHours} value={item.endingLeadHours}>{beijingDisplay(item.startAt)}—{beijingDisplay(item.endAt)} · {item.rawRainMm24.toFixed(1)} mm</option>)}</select></label><button type="button" className="zs-secondary" onClick={importChosen}>导入格点降雨</button></div> : <span className="zs-forecast-missing">{state === 'loading' ? '天气模式快照读取中…' : '当前没有完整的未来 24 小时格点窗口可导入；请人工填写假设雨量。'}</span>}
-    {chosen && <div className="zs-forecast-provenance">起报 {beijingDisplay(chosen.modelRunAt)} · 本系统首次取得 {beijingDisplay(chosen.availableAt)} · 格点距中心 {chosen.gridDistanceKm} km · <a href={chosen.sourceUrl} target="_blank" rel="noreferrer">ECMWF 来源 ↗</a></div>}
+    {chosen && <div className="zs-forecast-provenance">起报 {beijingDisplay(chosen.modelRunAt)} · 本次快照取得 {beijingDisplay(chosen.availableAt)} · 格点距中心 {chosen.gridDistanceKm} km · <a href={chosen.sourceUrl} target="_blank" rel="noreferrer">ECMWF 来源 ↗</a></div>}
     <small>ECMWF 模型推断 · 0.25° 格点 · 非城区实测或内涝预测；不提供 1 小时峰值，导入后须人工填写。</small>
   </div>
 }
