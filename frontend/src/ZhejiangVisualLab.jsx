@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ZHEJIANG_CITIES } from './zhejiangData.js'
+import { demoPointDepth, demoTimeLabel } from './zhejiangDemoData.js'
 
 const presets = [
   { id: 'compound', name: '复合暴雨压力', rain: 220, peak: 64, tide: 3, river: 2, drainage: 38 },
@@ -11,6 +12,7 @@ const presets = [
 ]
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+const noop = () => {}
 function makeSeries(inputs) {
   const profile = [0,0,0,0,0,0,1,2,3,5,8,12,18,24,29,27,22,18,14,11,8,6,4,3,2]
   const peakIndex = profile.indexOf(Math.max(...profile))
@@ -206,7 +208,7 @@ function Field({ label, value, min, max, unit, onChange }) {
   return <label className="zv-field"><span><strong>{label}</strong><small>{value}{unit}</small></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))}/><span className="zv-range"><i>{min}{unit}</i><i>{max}{unit}</i></span></label>
 }
 
-export default function ZhejiangVisualLab({ city }) {
+function CustomVisualLab({ city }) {
   const [cityId, setCityId] = useState(city?.id || 'ningbo')
   const [presetId, setPresetId] = useState('compound')
   const [inputs, setInputs] = useState(presets[0])
@@ -243,4 +245,45 @@ export default function ZhejiangVisualLab({ city }) {
     <div className="zv-timeline"><button type="button" onClick={() => { setPlaying(false); setHour(0) }}>↺ 重置</button><input aria-label="情景时间轴" type="range" min="0" max="24" value={hour} onChange={(event) => { setHour(Number(event.target.value)); setPlaying(false) }}/><span>T+00h</span><span>T+24h</span></div>
     <p className="zv-boundary"><strong>真实性边界</strong>：降雨、潮位、河网和排水参数为人为设定的假设值；地形与建筑是合成示意；蓝色区域、响应单元和指数均由演示规则生成，不表示真实地点、积水深度/范围、居民实际行为或经验证的城市预测。</p>
   </section>
+}
+
+function EventVisualLab({ city, dataset, demoHour, onDemoHourChange }) {
+  const [cityId, setCityId] = useState(city?.id || 'ningbo')
+  const [playing, setPlaying] = useState(false)
+  useEffect(() => { if (city) setCityId(city.id) }, [city?.id])
+  const selectedCity = ZHEJIANG_CITIES.find((item) => item.id === cityId) || ZHEJIANG_CITIES[0]
+  const rows = dataset.timeline.filter((row) => row.city_id === selectedCity.id)
+  const frame = rows.find((row) => row.hour === demoHour) || rows[0]
+  const activePoints = dataset.points.filter((point) => point.city_id === selectedCity.id && demoPointDepth(point, demoHour, dataset) >= 8)
+  const setHour = onDemoHourChange || noop
+  const duration = dataset.scenario.duration_hours
+  useEffect(() => {
+    if (!playing) return undefined
+    if (demoHour >= duration) { setPlaying(false); return undefined }
+    const timer = setTimeout(() => setHour(demoHour + 1), 700)
+    return () => clearTimeout(timer)
+  }, [playing, demoHour, duration, setHour])
+  return <section className="zv-lab zo-card" aria-labelledby="zv-event-title">
+    <header className="zv-header"><div><small>EVENT VISUALIZATION / HOURLY SCENARIO</small><h2 id="zv-event-title">台风过程 · 三维影响示意</h2><p>{dataset.scenario.name} · 与逐小时地图、风险曲线和建议共享同一时间</p></div><span className="zv-sim-badge"><i/>模拟情景 · 非实时</span></header>
+    <div className="zv-toolbar"><label>三维示例城市<select value={cityId} disabled={!!city} onChange={(event) => setCityId(event.target.value)}>{ZHEJIANG_CITIES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="zv-toolbar-meta"><span>{demoTimeLabel(demoHour, dataset.scenario.landfall_hour)} · 每6小时更新周期</span><button type="button" onClick={() => { if (!playing && demoHour >= duration) setHour(0); setPlaying((value) => !value) }} aria-pressed={playing}>{playing ? '暂停逐小时演示' : '▶ 播放逐小时过程'}</button></div></div>
+    <div className="zv-visual-grid">
+      <article className="zv-panel"><div className="zv-panel-title"><div><small>01 / PROCEDURAL CITY BLOCK</small><h3>参数化合成街区 · 3D水面演示</h3></div><span>随所选小时更新</span></div><TerrainScene frame={{ stress: frame.water_index, wetCells: Math.round(frame.water_index * 100) }} cityName={selectedCity.name}/><div className="zv-frame-caption"><strong>{Math.round(frame.water_index * 100)}</strong><span>情景压力指数 / 100</span><b>{activePoints.length} 个演示点位达到水深阈值</b></div></article>
+      <article className="zv-panel"><div className="zv-panel-title"><div><small>02 / HOURLY CITY RESPONSE</small><h3>{selectedCity.name} · 雨强与情景压力</h3></div><span>逐小时规则演算</span></div><div className="zv-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={rows} margin={{ top: 15, right: 8, bottom: 4, left: -18 }} onClick={(state) => { const hour = state?.activePayload?.[0]?.payload?.hour; if (Number.isInteger(hour)) { setHour(hour); setPlaying(false) } }}>
+        <defs><linearGradient id="eventStressFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4b9ad1" stopOpacity={.34}/><stop offset="100%" stopColor="#4b9ad1" stopOpacity={.03}/></linearGradient></defs>
+        <CartesianGrid stroke="#e2eaf1" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="hour" interval={5} tickFormatter={(value) => demoTimeLabel(Number(value), dataset.scenario.landfall_hour).replace(' ', '')} tick={{ fill: '#65788d', fontSize: 9 }} axisLine={{ stroke: '#c9d5df' }} tickLine={false}/><YAxis yAxisId="rain" tick={{ fill: '#65788d', fontSize: 9 }} axisLine={false} tickLine={false} label={{ value: 'mm/h', angle: -90, position: 'insideLeft', fill: '#65788d', fontSize: 9 }}/><YAxis yAxisId="stress" orientation="right" domain={[0, 1]} tick={{ fill: '#65788d', fontSize: 9 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ border: '1px solid #d7e1eb', borderRadius: 9, color: '#24364a', fontSize: 11 }} formatter={(value, name) => [name === '情景小时雨强' ? `${value} mm/h` : value, name]} labelFormatter={(value) => `${demoTimeLabel(Number(value), dataset.scenario.landfall_hour)} · 第${value}小时`}/>{Array.from({ length: 13 }, (_, index) => index * 6).map((hour) => <ReferenceLine key={hour} x={hour} yAxisId="stress" stroke="#a8b9c8" strokeDasharray="2 5"/>)}<ReferenceLine x={demoHour} yAxisId="rain" stroke="#284d72" strokeWidth={2} strokeDasharray="4 4"/><Area yAxisId="stress" type="monotone" dataKey="water_index" name="情景压力指数" stroke="#4b9ad1" strokeWidth={2.5} fill="url(#eventStressFill)" isAnimationActive={false}/><Line yAxisId="rain" type="monotone" dataKey="rainfall_rate_mm_h" name="情景小时雨强" stroke="#d49a63" strokeWidth={2} dot={false} isAnimationActive={false}/>
+      </ComposedChart></ResponsiveContainer></div><div className="zv-chart-legend"><span><i className="rain"/>情景雨强（左轴）</span><span><i className="response"/>规则压力指数（右轴）</span><span>虚线：6小时更新</span></div><div className="zv-chart-current"><span>6小时雨量 <strong>{frame.rainfall_6h_mm.toFixed(1)} mm</strong></span><span>当前水深点位 <strong>{activePoints.length}</strong></span></div></article>
+    </div>
+    <div className="zv-timeline"><button type="button" onClick={() => { setPlaying(false); setHour(0) }}>↺ 回到登陆前24h</button><input aria-label="模拟台风逐小时时间轴" type="range" min="0" max={duration} step="1" value={demoHour} onChange={(event) => { setHour(Number(event.target.value)); setPlaying(false) }}/><span>T−24h</span><span>登陆 T0</span><span>T+48h</span></div>
+    <p className="zv-boundary"><strong>真实性边界</strong>：台风路径、城市风险指数、雨强与点位水深是规则合成数据；三维街区为参数化示意，不是浙江真实建筑或积水淹没范围。6小时更新周期是演示流程设定，小时之间不代表新增实时数据。</p>
+  </section>
+}
+
+export default function ZhejiangVisualLab({ city, dataset, demoMode, demoHour, onDemoHourChange }) {
+  const [mode, setMode] = useState(demoMode === 'demo' ? 'event' : 'custom')
+  useEffect(() => setMode(demoMode === 'demo' ? 'event' : 'custom'), [demoMode])
+  if (demoMode !== 'demo' || !dataset) return <CustomVisualLab city={city}/>
+  return <div className="zv-module">
+    <div className="zv-mode-switch" role="tablist" aria-label="可视化模式"><button type="button" role="tab" aria-selected={mode === 'event'} className={mode === 'event' ? 'active' : ''} onClick={() => setMode('event')}>模拟台风过程</button><button type="button" role="tab" aria-selected={mode === 'custom'} className={mode === 'custom' ? 'active' : ''} onClick={() => setMode('custom')}>自定义情景预演</button></div>
+    {mode === 'event' ? <EventVisualLab city={city} dataset={dataset} demoHour={demoHour} onDemoHourChange={onDemoHourChange}/> : <CustomVisualLab city={city}/>}
+  </div>
 }

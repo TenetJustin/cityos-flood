@@ -2,36 +2,88 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { activeFloodPointCount, assessRealEventSnapshot } from '../src/realEventEvidence.js'
-import { cityDemoData, validateDemoDataset } from '../src/zhejiangDemoData.js'
+import { cityDemoData, demoCityAtHour, demoPointAdvice, demoPointDepth, demoResidentAtHour, demoTimeLabel, validateDemoDataset } from '../src/zhejiangDemoData.js'
 
 const dataset = JSON.parse(await readFile(new URL('../public/data/zhejiang-demo-snapshot.json', import.meta.url), 'utf8'))
 
-test('demo dataset is valid and covers the four Zhejiang cities with explicit synthetic provenance', () => {
+test('hourly typhoon demo covers all four cities for T−24h through T+48h with explicit synthetic provenance', () => {
   assert.deepEqual(validateDemoDataset(dataset), { valid: true, errors: [] })
   assert.equal(dataset.dataset_type, 'simulated_demo')
-  assert.equal(dataset.label, '演示模拟数据 · 非真实观测')
-  for (const key of ['timeline', 'points', 'resident_impacts', 'department_responses']) {
+  assert.equal(dataset.label, '模拟台风演示 · 非实时数据')
+  assert.equal(dataset.scenario.duration_hours, 72)
+  assert.equal(dataset.scenario.landfall_hour, 24)
+  assert.equal(dataset.scenario.time_step_hours, 1)
+  assert.equal(dataset.scenario.forecast_update_interval_hours, 6)
+  assert.equal(dataset.scenario.default_hour, 48)
+  for (const key of ['timeline', 'points', 'point_impacts', 'storm_track', 'resident_impacts', 'department_responses']) {
     assert.ok(dataset[key].length > 0)
-    assert.ok(dataset[key].every((row) => row.evidence_type === 'simulated_scenario' && row.source_id === 'synthetic-rules-v1'))
+    assert.ok(dataset[key].every((row) => row.evidence_type === 'simulated_scenario' && row.source_id === 'synthetic-typhoon-v2'))
   }
   assert.deepEqual(dataset.cities.map((row) => row.city_id), ['ningbo', 'taizhou', 'wenzhou', 'hangzhou'])
+  assert.equal(dataset.timeline.length, 4 * 73)
+  assert.equal(dataset.point_impacts.length, 16 * 73)
+  assert.equal(dataset.resident_impacts.length, 4 * 73)
+  assert.equal(dataset.storm_track.length, 73)
+  for (const cityId of ['ningbo', 'taizhou', 'wenzhou', 'hangzhou']) {
+    const rows = dataset.timeline.filter((row) => row.city_id === cityId)
+    assert.deepEqual(rows.map((row) => row.hour), Array.from({ length: 73 }, (_, hour) => hour))
+    assert.deepEqual(rows.filter((row) => row.is_forecast_update).map((row) => row.hour), Array.from({ length: 13 }, (_, cycle) => cycle * 6))
+  }
+  assert.equal(demoTimeLabel(0), 'T−24 h')
+  assert.equal(demoTimeLabel(24), '登陆时刻 T0')
+  assert.equal(demoTimeLabel(48), 'T+24 h')
 })
 
-test('city selector returns isolated city timeline, locations, impact assumptions, and response suggestions', () => {
+test('city selector returns isolated hourly timeline, point states, resident scenario, and six-hour suggestions', () => {
   const city = cityDemoData(dataset, 'wenzhou')
-  assert.equal(city.points.length, 2)
-  assert.equal(city.timeline.at(-1).rainfall_mm, 153)
-  assert.equal(city.residentImpacts[0].population_exposed, 5400)
-  assert.ok(city.departmentResponses.length > 0)
+  assert.equal(city.points.length, 4)
+  assert.equal(city.timeline.length, 73)
+  assert.equal(city.pointImpacts.length, 4 * 73)
+  assert.equal(city.residentImpacts.length, 73)
+  assert.equal(city.departmentResponses.length, 13)
+  assert.equal(city.stormTrack.length, 73)
   assert.equal(cityDemoData(dataset, 'shanghai'), null)
+})
+
+test('point depth and city status change by selected hour and never exceed synthetic point maxima', () => {
+  for (const cityId of ['ningbo', 'taizhou', 'wenzhou', 'hangzhou']) {
+    const city = cityDemoData(dataset, cityId)
+    assert.equal(city.points.length, 4)
+    assert.equal(new Set(city.points.map((point) => point.coordinates.join(','))).size, 4)
+    assert.equal(new Set(city.points.map((point) => point.label)).size, 4)
+    for (const point of city.points) {
+      assert.equal(demoPointDepth(point, point.onset_hour - 1, dataset), 0)
+      for (let hour = 0; hour <= 72; hour += 1) assert.ok(demoPointDepth(point, hour, dataset) <= point.depth_cm)
+    }
+  }
+  assert.equal(new Set(dataset.points.map((point) => point.label)).size, 16)
+  assert.match(demoPointAdvice({ depth_cm: 68 }), /交通管控与绕行/)
+  assert.match(demoPointAdvice({ depth_cm: 42 }), /泵站及相邻道路/)
+  assert.match(demoPointAdvice({ depth_cm: 18 }), /核对积水是否持续发展/)
+  const early = demoCityAtHour(dataset, 'wenzhou', 24)
+  const peak = demoCityAtHour(dataset, 'wenzhou', 48)
+  const recession = demoCityAtHour(dataset, 'wenzhou', 68)
+  assert.equal(early.activePoints.length, 0)
+  assert.ok(peak.activePoints.length > 0)
+  assert.ok(peak.peak_depth_cm > recession.peak_depth_cm)
+  assert.equal(peak.severity, 'severe')
+})
+
+test('resident response values are hourly scenario assumptions, not actual behavior', () => {
+  const early = demoResidentAtHour(dataset, 'ningbo', 24)
+  const peak = demoResidentAtHour(dataset, 'ningbo', 48)
+  assert.equal(early.exposed, early.stay + early.self + early.assist)
+  assert.equal(peak.exposed, peak.stay + peak.self + peak.assist)
+  assert.ok(peak.exposed > early.exposed)
+  assert.ok(peak.shelter <= peak.exposed)
 })
 
 test('demo records cannot be interpreted as real event observations', () => {
   const contaminated = {
     schema_version: 1, state: 'ok', retrieved_at: '2026-10-21T00:00:00Z',
-    sources: [{ id: 'synthetic-rules-v1', name: '演示合成器', url: 'https://example.invalid', license: 'synthetic demo' }],
+    sources: [{ id: 'synthetic-typhoon-v2', name: '演示合成器', url: 'https://example.invalid', license: 'synthetic demo' }],
     flood_points: [{
-      id: 'demo', city_id: 'ningbo', event_id: null, evidence_type: 'simulated_scenario', source_id: 'synthetic-rules-v1', quality: 'source_recorded',
+      id: 'demo', city_id: 'ningbo', event_id: null, evidence_type: 'simulated_scenario', source_id: 'synthetic-typhoon-v2', quality: 'source_recorded',
       observed_at: '2026-10-20T23:00:00Z', available_at: null, retrieved_at: '2026-10-21T00:00:00Z', place_name: '演示点位', coordinates: [121.55, 29.87], water_depth_cm: 5, status: 'waterlogged',
     }], resident_impacts: [], department_responses: [],
   }
@@ -39,11 +91,14 @@ test('demo records cannot be interpreted as real event observations', () => {
   assert.equal(activeFloodPointCount(contaminated, 'ningbo'), 0)
 })
 
-test('validator rejects weakened or relabeled simulation data', () => {
+test('validator rejects weakened provenance, the wrong refresh cadence, and false real-data labels', () => {
   const bad = structuredClone(dataset)
   bad.points[0].evidence_type = 'observation'
   assert.equal(validateDemoDataset(bad).valid, false)
   bad.points[0].evidence_type = 'simulated_scenario'
+  bad.timeline[0].forecast_cycle_hour = 1
+  assert.equal(validateDemoDataset(bad).valid, false)
+  bad.timeline[0].forecast_cycle_hour = 0
   bad.label = '真实实时数据'
   assert.equal(validateDemoDataset(bad).valid, false)
 })
