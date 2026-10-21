@@ -617,3 +617,18 @@ body,.zo-not-found{background:var(--cityos-paper)}
 .z-hydraulic-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:10px 0;color:#3f556c}.z-hydraulic-detail h4{margin:0 0 10px;font-size:19px}.z-hydraulic-detail p{font-size:13px;line-height:1.6}.z-hydraulic-detail dl{margin:12px 0}.z-hydraulic-detail dl>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #d9e2e9;padding:8px 0;font-size:12px}.z-hydraulic-detail dd{margin:0;font-weight:700}.z-hydraulic-detail svg{width:100%;max-height:130px}.z-hydraulic-detail svg text{font-size:10px;fill:#4f6d8a}.z-capacity-summary{display:flex;flex-direction:column;gap:7px;font-size:12px;border-radius:8px;background:#e4ecea;padding:12px}.z-capacity-summary b{color:#8b3746}.z-capacity-summary small{color:#41595c;line-height:1.5}
 @media(max-width:760px){.z-hydraulic-layout{grid-template-columns:1fr}.z-hydraulic-title{align-items:flex-start;flex-direction:column}.z-hydraulic-cell strong{font-size:13px}.z-hydraulic-cells{gap:4px}}
 @media(max-width:460px){.zo-topbar .zo-top-home{display:none}.zo-topbar{gap:6px}.zo-top-left{min-width:0}.zo-top-right{flex-shrink:0}}
+
+/* Product documentation: usage list, technology stack diagram, source table */
+.zo-doc-list{margin:8px 0 0;padding-left:18px;display:grid;gap:7px;color:#4e6177;font-size:11px;line-height:1.75}
+.zo-stack-diagram{display:grid;gap:5px;margin:14px 0 16px;padding:12px;border:1px solid #dbe5f0;border-radius:12px;background:linear-gradient(180deg,#f8fbff,#f2f7fc)}
+.zo-stack-layer{display:grid;grid-template-columns:86px minmax(0,1fr);align-items:center;gap:10px;padding:9px 10px;border:1px solid #d7e2ee;border-radius:9px;background:#fff;box-shadow:0 1px 2px rgba(42,74,110,.05)}
+.zo-stack-layer>span{font-size:10px;font-weight:700;color:#3e628a;letter-spacing:.04em}
+.zo-stack-layer>div{display:flex;flex-wrap:wrap;gap:6px}
+.zo-stack-layer b{padding:4px 7px;border-radius:5px;background:#eef5fc;color:#345b82;font-size:10px;font-weight:600;white-space:nowrap}
+.zo-stack-arrow{text-align:center;color:#9db3c9;font-size:13px;line-height:1;font-style:normal}
+.zo-source-table{width:100%;border-collapse:collapse;margin:10px 0 12px;font-size:10px;line-height:1.6}
+.zo-source-table th,.zo-source-table td{text-align:left;padding:7px 8px;border-bottom:1px solid #e3ebf4;vertical-align:top}
+.zo-source-table th{color:#3e628a;background:#f6f9fd;font-weight:700}
+.zo-source-table td{color:#4e6177}
+.zo-about-grid .zo-card{min-width:0}
+@media(max-width:720px){.zo-stack-layer{grid-template-columns:1fr;gap:6px}.zo-source-table{display:block;overflow-x:auto;white-space:nowrap}}

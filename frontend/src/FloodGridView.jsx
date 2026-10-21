@@ -20,19 +20,19 @@ export default function FloodGridView({ dataset, cityId, points, hour, selectedI
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   return <section className="z-hydraulic-grid" aria-label="动态二维点位网格与决策复核">
-    <div className="z-hydraulic-title"><div><small>{dataset.model?.engine === 'epa_swmm' ? '2D / NODE PONDING' : '2D / RULE SCENARIO'}</small><h3>微区点位水深 · 点击查看影响与建议</h3></div><button type="button" onClick={exportPacket}>导出当前复核包 ↓</button></div>
+    <div className="z-hydraulic-title"><div><small>{dataset.model?.engine === 'epa_swmm' ? '2D / NODE PONDING' : '2D / RULE SCENARIO'}</small><h3>微区点位水深</h3></div><button type="button" onClick={exportPacket}>导出当前复核包 ↓</button></div>
     <div className="z-hydraulic-layout">
       <div><div className="z-hydraulic-cells" aria-label="25个合成微区点位">
         {ordered.map((point) => <button type="button" key={point.point_id} aria-pressed={point.point_id === selected?.point_id} aria-label={`${point.label}，水深${point.current_depth_cm}厘米，相对高程${point.relative_elevation_m}米`} className={`z-hydraulic-cell ${point.priority_tier.toLowerCase()}`} onClick={() => onSelect(point.point_id)}>
           <span>{point.label}</span><strong>{point.current_depth_cm.toFixed(2)}<small> cm</small></strong><span>地势 {point.relative_elevation_m.toFixed(1)} m</span>
         </button>)}
-      </div><div className="z-hydraulic-legend"><span>灰 ＜8 cm</span><span>蓝 8–30</span><span>橙 30–60</span><span>红 ≥60</span></div><small>北↑ · 合成点位排列，不是街道淹没面积</small></div>
+      </div><div className="z-hydraulic-legend"><span>灰 ＜8 cm</span><span>蓝 8–30</span><span>橙 30–60</span><span>红 ≥60</span></div></div>
       <div className="z-hydraulic-detail" aria-live="polite">
         {selected && <><h4>{selected.label} · {selected.priority_tier}</h4><p>{demoActionForPoint(selected, selected.current_depth_cm).action}</p>
           <dl><div><dt>{curve ? '当前 / 过程最高水深' : '当前规则水深'}</dt><dd>{selected.current_depth_cm.toFixed(2)}{curve ? ` / ${Math.max(...curve).toFixed(2)}` : ''} cm</dd></div>{people && <div><dt>情景暴露 / 需要协助</dt><dd>{people.exposed} / {people.assisted} 人</dd></div>}{plan && <div><dt>候选安排</dt><dd>{assigned} 支队伍 · 待复核</dd></div>}</dl>
           {curve && <svg viewBox="0 0 300 112" role="img" aria-label={`${selected.label}73小时节点水深变化，当前${demoTimeLabel(hour)}`}><path d={curve.map((v, h) => `${h ? 'L' : 'M'} ${8+h*284/72} ${toY(v)}`).join(' ')} fill="none" stroke="#376eab" strokeWidth="2.5"/><line x1={8+hour*284/72} x2={8+hour*284/72} y1="12" y2="94" stroke="#8b3746" strokeDasharray="3 3"/><text x="8" y="110">T−24h</text><text x="118" y="110">登陆 T0</text><text x="250" y="110">T+48h</text></svg>}
         </>}
-        {plan && <div className="z-capacity-summary"><strong>本城资源测算</strong><span>可用 {plan.available_teams} 支 · 已分配 {plan.assigned_teams} 支 · 缺口 <b>{plan.unmet_teams}</b> 支</span><small>NetworkX 容量优化；队伍与可达条件为情景输入，非部门实况。</small></div>}
+        {plan && <div className="z-capacity-summary"><strong>本城资源测算</strong><span>可用 {plan.available_teams} 支 · 已分配 {plan.assigned_teams} 支 · 缺口 <b>{plan.unmet_teams}</b> 支</span></div>}
       </div>
     </div>
   </section>

@@ -30,7 +30,7 @@ CityOS 将公开或经授权取得的观测、历史记录、天气模式推断�
 
 ## 演示数据集（与真实数据隔离）
 
-静态演示集由 [`frontend/scripts/generate-zhejiang-demo.mjs`](../frontend/scripts/generate-zhejiang-demo.mjs) 生成，存于 [`frontend/public/data/zhejiang-demo-snapshot.json`](../frontend/public/data/zhejiang-demo-snapshot.json)，结构校验位于 [`zhejiangDemoData.js`](../frontend/src/zhejiangDemoData.js)。空间检查用 GeoJSON 快照 [`zhejiang-demo-peak.geojson`](../frontend/public/data/zhejiang-demo-peak.geojson)，可直接导入 QGIS/GDAL 作图层核查。`dataset_type=simulated_demo`、页面标签“模拟台风演示 · 非实时数据”、逐条 `evidence_type=simulated_scenario` 及 `source_id=synthetic-typhoon-v3` 是必需标记。时区为 Asia/Shanghai，台风登陆时刻记为相对时刻 T0；时间范围为登陆前24小时至登陆后48小时，固定1小时步长。`observation_time` 与 `actual_available_at` 明确为 null，因为该演示没有真实观测或供应方可获得时间。坐标声明为 EPSG:4326，雨强/累计雨量单位为 mm/h 与 mm，水深单位为 cm，影响人数仅为合成聚合值；质量标记为 `synthetic_demo_only`，缺失值使用 null。
+静态演示集由 [`frontend/scripts/generate-zhejiang-demo.mjs`](../frontend/scripts/generate-zhejiang-demo.mjs) 生成，存于 [`frontend/public/data/zhejiang-demo-snapshot.json`](../frontend/public/data/zhejiang-demo-snapshot.json)，结构校验位于 [`zhejiangDemoData.js`](../frontend/src/zhejiangDemoData.js)。空间检查用 GeoJSON 快照 [`zhejiang-demo-peak.geojson`](../frontend/public/data/zhejiang-demo-peak.geojson)，可直接导入 QGIS/GDAL 作图层核查。`dataset_type=simulated_demo`、数据标签“模拟台风演示 · 非实时数据”（页面只显示“演示”状态）、逐条 `evidence_type=simulated_scenario` 及 `source_id=synthetic-typhoon-v3` 是必需标记。时区为 Asia/Shanghai，台风登陆时刻记为相对时刻 T0；时间范围为登陆前24小时至登陆后48小时，固定1小时步长。`observation_time` 与 `actual_available_at` 明确为 null，因为该演示没有真实观测或供应方可获得时间。坐标声明为 EPSG:4326，雨强/累计雨量单位为 mm/h 与 mm，水深单位为 cm，影响人数仅为合成聚合值；质量标记为 `synthetic_demo_only`，缺失值使用 null。
 
 数据包保存四城逐小时驱动、100个合成微区、73个台风路径时刻、每城13条六小时建议，以及EPA SWMM 5.2.4实际计算的100×73节点蓄水序列。前端从同一求解器结果计算排序、居民影响和建议，并联动地图、二维点位矩阵与三维地形。点击二维点位可查看全过程水深、影响人数与NetworkX候选队伍；可导出当前复核包。6小时是建议汇集周期，不是新的真实观测或滚动预报。三维水斑是点位符号，不是二维淹没面积。[完整复现、验收与工程替代方案](OPEN_SOURCE_DELIVERY.md)。
 
@@ -102,6 +102,32 @@ V = min(E−A, round((E−A)×(0.15+0.45×clamp(D_cm/80))))
 | 影响/资源优化 | 已使用NetworkX最小费用最大流生成容量约束的队伍候选和缺口；居民估算用透明守恒规则 | FIAT/SUMO未使用；需资产/交通网络与真值后再评估，不声称真实行为或实际调度 |
 
 当前可交付的是：可配置真实接入工具、隔离的合成台风数据流、实际SWMM计算与GIS导出、资源约束建议、联动2D/3D及可导出复核包。持续服务、真实片区校准、独立历史验证和公众业务资质仍不是已完成能力。各开源候选不是必须全部安装的清单；详见[本轮交付与复现](OPEN_SOURCE_DELIVERY.md)。
+
+## 技术栈图
+
+```mermaid
+flowchart TB
+  SRC["数据源<br/>ECMWF · NOAA · 政府开放数据"]
+  UI["交互层<br/>React 18 · Vite · Leaflet · Three.js · Recharts"]
+  ING["接入层<br/>FastAPI · OGC SensorThings · SQLite · 静态快照"]
+  CALC["计算层<br/>EPA SWMM 5.2.4 · Rasterio/GDAL · Shapely · NetworkX"]
+  MODEL["模型层<br/>节点蓄水 · 居民规则 · 资源分配 · 情景规则"]
+  DEPLOY["发布与验证<br/>GitHub Actions · Pages · Python unittest · Node test"]
+  SRC --> ING
+  UI --> ING
+  ING --> CALC
+  CALC --> MODEL
+  MODEL --> UI
+  MODEL --> DEPLOY
+```
+
+| 层级 | 当前实现 | 作用 |
+|---|---|---|
+| 交互层 | React 18、Vite、Leaflet、Three.js、Recharts | 地图、二维点位、三维地形、时间序列与交互 |
+| 接入层 | FastAPI、OGC SensorThings、SQLite、静态快照 | 授权数据接入、去重存储、静态发布 |
+| 计算层 | EPA SWMM 5.2.4、Rasterio/GDAL、Shapely、NetworkX | 节点蓄水、GIS 输出、空间核查、资源分配 |
+| 模型层 | 节点蓄水、居民规则、资源分配、情景规则 | 从驱动到点位、影响与建议 |
+| 发布与验证 | GitHub Actions、Pages、Python unittest、Node test | 构建、哈希检查、自动化验收 |
 
 ## 当前来源
 
