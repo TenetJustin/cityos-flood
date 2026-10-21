@@ -1,0 +1,5 @@
+# Python 3.12; isolated optional calculation environment, not browser dependencies.
+numpy==2.2.6
+rasterio==1.4.3
+shapely==2.1.2
+networkx==3.4.2

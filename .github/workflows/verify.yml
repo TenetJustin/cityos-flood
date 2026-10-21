@@ -5,6 +5,37 @@ on:
   pull_request:
 
 jobs:
+  hydraulic-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated GIS and graph calculation dependencies
+        run: python -m pip install -r backend/requirements-hydrology.txt
+      - name: Build pinned EPA solver and run numerical acceptance cases
+        run: |
+          python backend/scripts/build_swmm.py
+          node frontend/scripts/generate-zhejiang-demo.mjs
+          python -m backend.scripts.run_hydraulic_demo
+          node frontend/scripts/publish-hydraulic-demo.mjs
+          cd frontend
+          npm ci
+          npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hydraulic-acceptance-${{ github.sha }}
+          path: |
+            .tmp/hydraulic-demo/results.json
+            .tmp/hydraulic-demo/*/model.inp
+            .tmp/hydraulic-demo/*/model.rpt
+            .tmp/swmm-build.json
+          retention-days: 30
+
   backend:
     runs-on: ubuntu-latest
     steps:

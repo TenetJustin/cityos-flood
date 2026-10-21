@@ -1,0 +1,2 @@
+# Preserve generated SWMM report formatting; whitespace is part of the tool output.
+frontend/public/data/hydraulic-demo/*.rpt -whitespace

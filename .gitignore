@@ -53,3 +53,7 @@ outputs/*.pptx
 outputs/*.ndjson
 outputs/自主优化WAM-*/
 data/_test_decisions.json
+
+# --- Local presentation artifacts (not published) ---
+.codex-presentation-build/
+deliverables/

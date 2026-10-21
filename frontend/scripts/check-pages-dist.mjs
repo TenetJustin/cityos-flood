@@ -9,6 +9,7 @@ import { assessSynopticRain } from '../src/zhejiangSynopticRain.js'
 import { assessTrackSnapshot } from '../src/historicalTracks.js'
 import { assessRealEventSnapshot } from '../src/realEventEvidence.js'
 import { assessEvidenceManifest, EVIDENCE_FILES } from './evidence-manifest.mjs'
+import { validateDemoDataset } from '../src/zhejiangDemoData.js'
 
 const dist = new URL('../dist/', import.meta.url)
 const read = (path) => readFile(new URL(path, dist), 'utf8')
@@ -45,4 +46,11 @@ assert.equal(assessTrackSnapshot(await json('zhejiang-track-candidates.json')).v
 const manifest = await json('zhejiang-evidence-manifest.json')
 const evidenceBytes = Object.fromEntries(await Promise.all(EVIDENCE_FILES.map(async (path) => [path, await readFile(new URL(`data/${path}`, dist))])))
 assert.deepEqual(assessEvidenceManifest(manifest, evidenceBytes), { valid: true, issues: [] }, 'evidence hashes differ from deployed files')
+const demo = await json('zhejiang-demo-snapshot.json')
+assert.deepEqual(validateDemoDataset(demo), { valid: true, errors: [] }, 'hydraulic demonstration malformed')
+assert.equal(demo.model.engine, 'epa_swmm')
+for (const city of ZHEJIANG_CITIES) {
+  assert.match(await read(`data/hydraulic-demo/${city.id}.inp`), /SYNTHETIC/)
+  assert.match(await read(`data/hydraulic-demo/${city.id}.rpt`), /Build 5.2.4/)
+}
 console.log(`Static Pages routes, ${EVIDENCE_FILES.length} evidence snapshots and exact-file hashes verified.`)
